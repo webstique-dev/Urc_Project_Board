@@ -111,6 +111,65 @@ export default function Login() {
           </button>
         </form>
 
+        {/* Quick Test Credentials */}
+        <div className="mt-6 bg-surface/60 border border-line rounded-xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold text-muted uppercase tracking-wider">
+              Quick Test Credentials
+            </span>
+            <span className="text-[10px] text-accent-light bg-accent/15 px-2 py-0.5 rounded-full font-medium">
+              Click to fill
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setEmail("admin@workspace.com");
+                setPassword("password123");
+                setError("");
+                toast.info("Filled PM credentials (admin@workspace.com)");
+              }}
+              className="flex flex-col items-start p-2.5 rounded-lg bg-surface-3 hover:bg-surface-2 border border-line hover:border-accent/50 text-left transition-all group"
+            >
+              <div className="flex items-center justify-between w-full mb-1">
+                <span className="text-xs font-medium text-ink group-hover:text-accent-light">
+                  Project Manager
+                </span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/20 text-accent-light font-mono font-semibold">
+                  PM
+                </span>
+              </div>
+              <span className="text-[11px] text-muted font-mono truncate w-full">
+                admin@workspace.com
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setEmail("member@workspace.com");
+                setPassword("password123");
+                setError("");
+                toast.info("Filled Member credentials (member@workspace.com)");
+              }}
+              className="flex flex-col items-start p-2.5 rounded-lg bg-surface-3 hover:bg-surface-2 border border-line hover:border-accent/50 text-left transition-all group"
+            >
+              <div className="flex items-center justify-between w-full mb-1">
+                <span className="text-xs font-medium text-ink group-hover:text-accent-light">
+                  Employee
+                </span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-muted font-mono font-semibold">
+                  MEMBER
+                </span>
+              </div>
+              <span className="text-[11px] text-muted font-mono truncate w-full">
+                member@workspace.com
+              </span>
+            </button>
+          </div>
+        </div>
+
         <p className="text-center text-sm text-muted mt-4">
           New here?{" "}
           <Link to="/register" className="text-accent-light font-medium hover:underline">
