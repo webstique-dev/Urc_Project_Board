@@ -1,11 +1,16 @@
 import { useEffect, useState } from "react";
 import api from "../api/axios.js";
+import ConfirmationModal from "./ConfirmationModal.jsx";
+import { useToast } from "../context/ToastContext.jsx";
 
 export default function CardModal({ cardId, boardMembers, onClose, onChanged }) {
+  const toast = useToast();
   const [card, setCard] = useState(null);
   const [description, setDescription] = useState("");
   const [newChecklistItem, setNewChecklistItem] = useState("");
   const [comment, setComment] = useState("");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const load = () => api.get(`/cards/${cardId}`).then((res) => {
     setCard(res.data);
@@ -47,11 +52,19 @@ export default function CardModal({ cardId, boardMembers, onClose, onChanged }) 
     setComment("");
   };
 
-  const deleteCard = async () => {
-    if (!confirm("Delete this card?")) return;
-    await api.delete(`/cards/${cardId}`);
-    onChanged();
-    onClose();
+  const handleDeleteConfirm = async () => {
+    setIsDeleting(true);
+    try {
+      await api.delete(`/cards/${cardId}`);
+      toast.success("Card deleted", { title: "Deleted" });
+      onChanged();
+      setShowDeleteModal(false);
+      onClose();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to delete card");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   if (!card) return null;
@@ -188,12 +201,27 @@ export default function CardModal({ cardId, boardMembers, onClose, onChanged }) 
               />
             </div>
 
-            <button onClick={deleteCard} className="text-sm text-red-400 hover:text-red-300">
+            <button
+              type="button"
+              onClick={() => setShowDeleteModal(true)}
+              className="text-sm text-red-400 hover:text-red-300 hover:underline text-left pt-2 transition-colors"
+            >
               Delete card
             </button>
           </div>
         </div>
       </div>
+
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete card"
+        message={`Are you sure you want to delete "${card.title}"? This cannot be undone.`}
+        confirmText="Delete card"
+        isDestructive={true}
+        loading={isDeleting}
+      />
     </div>
   );
 }

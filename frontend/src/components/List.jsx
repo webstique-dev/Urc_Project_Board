@@ -2,12 +2,17 @@ import { useState } from "react";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
 import api from "../api/axios.js";
 import Card from "./Card.jsx";
+import ConfirmationModal from "./ConfirmationModal.jsx";
+import { useToast } from "../context/ToastContext.jsx";
 
 export default function List({ list, onAddCard, onOpenCard, onChanged }) {
+  const toast = useToast();
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState("");
   const [editingTitle, setEditingTitle] = useState(false);
   const [listTitle, setListTitle] = useState(list.title);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const submitCard = async (e) => {
     e.preventDefault();
@@ -25,10 +30,18 @@ export default function List({ list, onAddCard, onOpenCard, onChanged }) {
     }
   };
 
-  const removeList = async () => {
-    if (!confirm(`Delete "${list.title}" and all its cards?`)) return;
-    await api.delete(`/lists/${list._id}`);
-    onChanged();
+  const handleConfirmDeleteList = async () => {
+    setIsDeleting(true);
+    try {
+      await api.delete(`/lists/${list._id}`);
+      toast.success(`List "${list.title}" deleted`, { title: "Deleted" });
+      onChanged();
+      setShowDeleteModal(false);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to delete list");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -52,10 +65,27 @@ export default function List({ list, onAddCard, onOpenCard, onChanged }) {
             <span className="text-white/40 font-normal ml-1.5">{list.cards.length}</span>
           </h3>
         )}
-        <button onClick={removeList} className="text-white/40 hover:text-red-400 text-xs">
+        <button
+          type="button"
+          onClick={() => setShowDeleteModal(true)}
+          title="Delete list"
+          aria-label="Delete list"
+          className="text-white/40 hover:text-red-400 text-xs p-1 transition-colors"
+        >
           ✕
         </button>
       </div>
+
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleConfirmDeleteList}
+        title="Delete list"
+        message={`Delete "${list.title}" and all its ${list.cards.length} cards? This action cannot be undone.`}
+        confirmText="Delete list"
+        isDestructive={true}
+        loading={isDeleting}
+      />
 
       <Droppable droppableId={list._id}>
         {(provided, snapshot) => (
