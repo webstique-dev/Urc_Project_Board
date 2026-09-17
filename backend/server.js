@@ -18,12 +18,49 @@ connectDB();
 const app = express();
 const server = http.createServer(app);
 
+const getOrigins = () => {
+  if (!process.env.CLIENT_URL) return ["http://localhost:5173"];
+  return process.env.CLIENT_URL.split(",").map((url) => url.trim().replace(/\/$/, ""));
+};
+
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
+  const cleanOrigin = origin.replace(/\/$/, "");
+  const allowed = getOrigins();
+  return (
+    allowed.includes("*") ||
+    allowed.includes(cleanOrigin) ||
+    allowed.some((a) => cleanOrigin.startsWith(a))
+  );
+};
+
 const io = new Server(server, {
-  cors: { origin: process.env.CLIENT_URL || "http://localhost:5173" },
+  cors: {
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    credentials: true,
+  },
 });
 initSocket(io);
 
-app.use(cors({ origin: process.env.CLIENT_URL || "http://localhost:5173" }));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);
