@@ -126,7 +126,7 @@ export default function Login() {
               type="button"
               onClick={() => {
                 setEmail("admin@workspace.com");
-                setPassword("password123");
+                setPassword("Password123");
                 setError("");
                 toast.info("Filled PM credentials (admin@workspace.com)");
               }}
