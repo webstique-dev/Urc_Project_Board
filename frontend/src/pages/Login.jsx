@@ -48,20 +48,28 @@ export default function Login() {
             </p>
           )}
           <div>
-            <label className="block text-sm text-muted mb-1">Email</label>
+            <label htmlFor="login-email" className="block text-sm text-muted mb-1">
+              Email
+            </label>
             <input
+              id="login-email"
               type="email"
               required
+              disabled={loading}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg bg-surface-3 border border-line px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent"
+              className="w-full rounded-lg bg-surface-3 border border-line px-3 py-2 text-sm text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent disabled:opacity-50 transition-colors"
               placeholder="you@company.com"
             />
           </div>
           <div>
-            <label className="block text-sm text-muted mb-1">Password</label>
+            <label htmlFor="login-password" className="block text-sm text-muted mb-1">
+              Password
+            </label>
             <PasswordInput
+              id="login-password"
               required
+              disabled={loading}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
@@ -69,10 +77,37 @@ export default function Login() {
             />
           </div>
           <button
+            type="submit"
             disabled={loading}
-            className="w-full bg-accent hover:bg-accent-dark text-white text-sm font-medium rounded-lg py-2.5 transition-colors disabled:opacity-60"
+            className="w-full bg-accent hover:bg-accent-dark text-white text-sm font-medium rounded-lg py-2.5 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
           >
-            {loading ? "Signing in…" : "Sign in"}
+            {loading ? (
+              <>
+                <svg
+                  className="animate-spin -ml-0.5 w-4 h-4 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v8H4z"
+                  />
+                </svg>
+                <span>Signing in…</span>
+              </>
+            ) : (
+              "Sign in"
+            )}
           </button>
         </form>
 
