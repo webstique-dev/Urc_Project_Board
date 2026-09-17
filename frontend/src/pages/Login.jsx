@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useToast } from "../context/ToastContext.jsx";
 import PasswordInput from "../components/PasswordInput.jsx";
 
 export default function Login() {
   const { login } = useAuth();
+  const toast = useToast();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -17,9 +19,12 @@ export default function Login() {
     setLoading(true);
     try {
       await login(email, password);
+      toast.success("Welcome back!", { title: "Signed In" });
       navigate("/");
     } catch (err) {
-      setError(err.response?.data?.message || "Couldn't sign in. Check your details.");
+      const msg = err.response?.data?.message || "Couldn't sign in. Check your details.";
+      setError(msg);
+      toast.error(msg, { title: "Sign in failed" });
     } finally {
       setLoading(false);
     }

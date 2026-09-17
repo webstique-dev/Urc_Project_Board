@@ -2,12 +2,14 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios.js";
 import { PALETTE } from "../utils/color.js";
+import { useToast } from "../context/ToastContext.jsx";
 
 // Popup for creating a new project. Only ever rendered for admins (callers
 // gate this), but the create button double-checks nothing client-side can
 // bypass server-side role checks on POST /api/boards.
 export default function NewProjectModal({ onClose, onCreated }) {
   const navigate = useNavigate();
+  const toast = useToast();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [color, setColor] = useState(PALETTE[0]);
@@ -21,11 +23,14 @@ export default function NewProjectModal({ onClose, onCreated }) {
     setError("");
     try {
       const res = await api.post("/boards", { title, description, color });
+      toast.success(`Project "${title}" created!`, { title: "Success" });
       onCreated?.(res.data);
       onClose();
       navigate(`/boards/${res.data._id}`);
     } catch (err) {
-      setError(err.response?.data?.message || "Couldn't create the project.");
+      const msg = err.response?.data?.message || "Couldn't create the project.";
+      setError(msg);
+      toast.error(msg, { title: "Error" });
     } finally {
       setLoading(false);
     }

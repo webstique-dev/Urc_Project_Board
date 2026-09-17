@@ -32,3 +32,12 @@ body {
 .board-canvas {
   background-attachment: fixed;
 }
+
+@keyframes shrinkWidth {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
