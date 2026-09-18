@@ -223,7 +223,7 @@ export default function FilterPopover({
 
                               {/* Label and Sublabel */}
                               <div className="min-w-0 flex-1">
-                                <p className="truncate leading-tight">{opt.label}</p>
+                                <p className="truncate leading-tight text-ink font-medium">{opt.label}</p>
                                 {opt.sublabel && (
                                   <p className="text-[10px] text-muted truncate leading-tight mt-0.5">
                                     {opt.sublabel}

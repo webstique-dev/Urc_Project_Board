@@ -41,12 +41,14 @@ export default function Register() {
   return (
     <div className="min-h-[100dvh] flex items-center justify-center bg-base px-4 sm:px-6 py-8">
       <div className="w-full max-w-sm">
-        <div className="mb-6 sm:mb-8 text-center">
-          <span className="inline-flex w-11 h-11 rounded-xl bg-accent items-center justify-center text-white text-lg font-bold mb-3 shadow-sm">
-            B
-          </span>
+        <div className="mb-6 sm:mb-8 text-center flex flex-col items-center">
+          <img
+            src="/Urc_logo.svg"
+            alt="URC Building Values"
+            className="h-12 w-auto max-w-[180px] object-contain mb-3"
+          />
           <h1 className="text-xl sm:text-2xl font-bold text-ink tracking-tight">Create your account</h1>
-          <p className="text-xs sm:text-sm text-muted mt-1">Get started with your project workspace</p>
+          <p className="text-xs sm:text-sm text-muted mt-1">Get started with URC Building Values</p>
         </div>
 
         <form onSubmit={submit} className="bg-surface border border-line rounded-xl sm:rounded-2xl p-5 sm:p-6 space-y-4 shadow-card">

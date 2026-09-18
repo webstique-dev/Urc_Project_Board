@@ -31,12 +31,16 @@ export default function Navbar() {
             <Link
               to="/"
               onClick={closeMobileMenu}
-              className="flex items-center gap-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-accent/40 rounded-lg"
+              className="flex items-center gap-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-accent/40 rounded-lg group"
             >
-              <span className="w-7 h-7 rounded-lg bg-accent flex items-center justify-center text-white text-xs font-bold shadow-sm">
-                B
+              <img
+                src="/Urc_logo.svg"
+                alt="URC Building Values"
+                className="h-7 sm:h-8 w-auto object-contain transition-transform group-hover:scale-105"
+              />
+              <span className="font-semibold text-ink text-sm sm:text-base tracking-tight">
+                URC Building Values
               </span>
-              <span className="font-semibold text-ink text-sm tracking-tight">Workspace</span>
             </Link>
 
             {/* Desktop Navigation Links */}
@@ -70,7 +74,7 @@ export default function Navbar() {
               >
                 {user?.name?.[0]?.toUpperCase()}
               </span>
-              <span className="text-sm font-medium text-ink/90 max-w-[150px] truncate">{user?.name}</span>
+              <span className="text-sm font-medium text-ink max-w-[150px] truncate">{user?.name}</span>
               {user?.role === "admin" && (
                 <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-accent/20 text-accent-light font-semibold">
                   PM
@@ -185,7 +189,7 @@ export default function Navbar() {
         onClose={() => setShowSignoutModal(false)}
         onConfirm={handleConfirmLogout}
         title="Sign out"
-        message="Are you sure you want to sign out of your workspace session?"
+        message="Are you sure you want to sign out of your URC Building Values session?"
         confirmText="Sign out"
         cancelText="Stay signed in"
         variant="destructive"

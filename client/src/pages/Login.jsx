@@ -34,11 +34,13 @@ export default function Login() {
   return (
     <div className="min-h-[100dvh] flex items-center justify-center bg-base px-4 sm:px-6 py-8">
       <div className="w-full max-w-sm">
-        <div className="mb-6 sm:mb-8 text-center">
-          <span className="inline-flex w-11 h-11 rounded-xl bg-accent items-center justify-center text-white text-lg font-bold mb-3 shadow-sm">
-            B
-          </span>
-          <h1 className="text-xl sm:text-2xl font-bold text-ink tracking-tight">Sign in to Workspace</h1>
+        <div className="mb-6 sm:mb-8 text-center flex flex-col items-center">
+          <img
+            src="/Urc_logo.svg"
+            alt="URC Building Values"
+            className="h-12 w-auto max-w-[180px] object-contain mb-3"
+          />
+          <h1 className="text-xl sm:text-2xl font-bold text-ink tracking-tight">Sign in to URC Building Values</h1>
           <p className="text-xs sm:text-sm text-muted mt-1">Track your team's projects in one place</p>
         </div>
 

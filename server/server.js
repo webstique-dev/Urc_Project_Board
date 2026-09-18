@@ -1,6 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
+import compression from "compression";
 import http from "http";
 import { Server } from "socket.io";
 
@@ -18,20 +19,28 @@ connectDB();
 const app = express();
 const server = http.createServer(app);
 
+// Gzip / Deflate compression for all responses
+app.use(compression());
+
 const getOrigins = () => {
-  if (!process.env.CLIENT_URL) return ["http://localhost:5173"];
+  if (!process.env.CLIENT_URL) return ["http://localhost:5173", "http://127.0.0.1:5173"];
   return process.env.CLIENT_URL.split(",").map((url) => url.trim().replace(/\/$/, ""));
 };
 
 const isAllowedOrigin = (origin) => {
   if (!origin) return true;
-  const cleanOrigin = origin.replace(/\/$/, "");
-  const allowed = getOrigins();
-  return (
-    allowed.includes("*") ||
-    allowed.includes(cleanOrigin) ||
-    allowed.some((a) => cleanOrigin.startsWith(a))
-  );
+  try {
+    const cleanOrigin = origin.replace(/\/$/, "");
+    const allowed = getOrigins();
+    if (allowed.includes("*") || allowed.includes(cleanOrigin)) return true;
+    const hostname = new URL(origin).hostname;
+    if (hostname.endsWith(".vercel.app") || hostname === "localhost" || hostname === "127.0.0.1") {
+      return true;
+    }
+    return allowed.some((a) => cleanOrigin.startsWith(a));
+  } catch (err) {
+    return false;
+  }
 };
 
 const io = new Server(server, {
@@ -62,6 +71,12 @@ app.use(
   })
 );
 app.use(express.json());
+
+// Lightweight health check endpoint for external ping services / uptime monitors (e.g. UptimeRobot, cron-job.org)
+// Returns 200 without DB query to keep the dyno warm with zero performance penalty
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+});
 
 app.use("/api/auth", authRoutes);
 app.use("/api/boards", boardRoutes);

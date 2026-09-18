@@ -226,7 +226,7 @@ export default function MembersPanel({ board, onClose, onChanged }) {
                         disabled
                         aria-label="Cannot remove sole manager"
                         title="Assign another manager before removing this one"
-                        className="text-xs font-medium text-muted/30 cursor-not-allowed px-2 py-1 rounded-lg shrink-0"
+                        className="text-xs font-medium text-muted/50 cursor-not-allowed px-2 py-1 rounded-lg shrink-0"
                       >
                         Remove
                       </button>
@@ -273,7 +273,7 @@ export default function MembersPanel({ board, onClose, onChanged }) {
               className={`text-xs sm:text-sm font-semibold rounded-lg px-4 py-2.5 transition-all shrink-0 touch-manipulation flex items-center justify-center gap-1.5 shadow-sm ${
                 selected && !isAdding
                   ? "bg-accent hover:bg-accent-dark text-white cursor-pointer active:scale-[0.98]"
-                  : "bg-surface-3 text-muted/50 border border-line/60 cursor-not-allowed opacity-60"
+                  : "bg-surface-3 text-muted/70 border border-line/60 cursor-not-allowed"
               }`}
             >
               <Plus size={15} className="shrink-0" />

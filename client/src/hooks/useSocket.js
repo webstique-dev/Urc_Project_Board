@@ -9,7 +9,13 @@ export const useSocket = (boardId, handlers) => {
   useEffect(() => {
     if (!boardId) return;
 
-    const socket = io(import.meta.env.VITE_SOCKET_URL || "http://localhost:5000");
+    const socket = io(import.meta.env.VITE_SOCKET_URL || "http://localhost:5000", {
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 30000,
+    });
     socketRef.current = socket;
     socket.emit("board:join", boardId);
 

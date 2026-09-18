@@ -177,7 +177,7 @@ export default function Select({
               )}
             </>
           ) : (
-            <span className="text-muted/60 truncate">{placeholder}</span>
+            <span className="text-muted/70 truncate">{placeholder}</span>
           )}
         </div>
 
@@ -221,7 +221,7 @@ export default function Select({
                       ? "bg-accent/20 text-accent-light font-medium"
                       : isHighlighted
                       ? "bg-surface-2 text-ink"
-                      : "text-ink/90 hover:bg-surface-2"
+                      : "text-ink hover:bg-surface-2"
                   }`}
                 >
                   <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -235,7 +235,7 @@ export default function Select({
                     )}
                     {option.icon && <span className="shrink-0">{option.icon}</span>}
                     <div className="min-w-0 flex-1">
-                      <p className="truncate">{option.label}</p>
+                      <p className="truncate text-ink font-medium">{option.label}</p>
                       {option.sublabel && (
                         <p className="text-[11px] text-muted truncate">{option.sublabel}</p>
                       )}

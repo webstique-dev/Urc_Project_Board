@@ -166,9 +166,8 @@ export default function DatePicker({
                 day_button:
                   "w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-surface-2 text-ink cursor-pointer focus:outline-none focus:ring-1 focus:ring-accent",
                 selected: "!bg-accent !text-white font-bold shadow-sm rounded-lg hover:!bg-accent",
-                today: "text-accent-light font-bold underline decoration-accent underline-offset-4",
-                outside: "text-muted/30 opacity-40 hover:opacity-100",
-                disabled: "text-muted/20 cursor-not-allowed",
+                outside: "text-muted/50 hover:opacity-100",
+                disabled: "text-muted/40 cursor-not-allowed",
               }}
             />
           </div>

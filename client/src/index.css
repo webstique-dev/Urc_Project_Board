@@ -13,6 +13,18 @@ body {
   color: #EDEBF5;
 }
 
+input, textarea, select, button {
+  font-family: inherit;
+  color: #EDEBF5;
+}
+
+::placeholder,
+input::placeholder,
+textarea::placeholder {
+  color: #9A93B0 !important;
+  opacity: 0.65;
+}
+
 @layer utilities {
   /* Cross-browser scrollbar hiding utility */
   .scrollbar-hide::-webkit-scrollbar,

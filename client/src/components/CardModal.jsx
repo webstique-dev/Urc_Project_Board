@@ -71,78 +71,78 @@ function renderActivityText(activity) {
   switch (activity.action) {
     case "created":
       return (
-        <>
+        <span className="text-muted">
           <span className="font-semibold text-ink">{userName}</span> created this card
-          {activity.meta?.listTitle ? <span className="text-muted"> in {activity.meta.listTitle}</span> : ""}
-        </>
+          {activity.meta?.listTitle ? <span className="text-muted font-medium"> in {activity.meta.listTitle}</span> : ""}
+        </span>
       );
     case "moved":
       return (
-        <>
+        <span className="text-muted">
           <span className="font-semibold text-ink">{userName}</span> moved this card
           {activity.meta?.fromList && activity.meta?.toList ? (
-            <span className="text-muted"> from {activity.meta.fromList} to {activity.meta.toList}</span>
+            <span className="text-muted font-medium"> from {activity.meta.fromList} to {activity.meta.toList}</span>
           ) : ""}
-        </>
+        </span>
       );
     case "completed":
       return (
-        <>
+        <span className="text-muted">
           <span className="font-semibold text-ink">{userName}</span> marked this card as completed
-        </>
+        </span>
       );
     case "uncompleted":
       return (
-        <>
+        <span className="text-muted">
           <span className="font-semibold text-ink">{userName}</span> marked this card as incomplete
-        </>
+        </span>
       );
     case "priority_changed":
       return (
-        <>
+        <span className="text-muted">
           <span className="font-semibold text-ink">{userName}</span> set priority to{" "}
           <span className="capitalize font-medium text-accent-light">{activity.meta?.to || "medium"}</span>
-        </>
+        </span>
       );
     case "due_date_changed":
       return (
-        <>
+        <span className="text-muted">
           <span className="font-semibold text-ink">{userName}</span>{" "}
           {activity.meta?.dueDate
             ? `set due date to ${new Date(activity.meta.dueDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
             : "removed the due date"}
-        </>
+        </span>
       );
     case "labels_changed":
       return (
-        <>
+        <span className="text-muted">
           <span className="font-semibold text-ink">{userName}</span> updated labels
-        </>
+        </span>
       );
     case "assignees_changed":
       return (
-        <>
+        <span className="text-muted">
           <span className="font-semibold text-ink">{userName}</span> updated members
-        </>
+        </span>
       );
     case "attachment_added":
       return (
-        <>
+        <span className="text-muted">
           <span className="font-semibold text-ink">{userName}</span> attached link{" "}
           <span className="font-medium text-accent-light">"{activity.meta?.label || activity.meta?.url}"</span>
-        </>
+        </span>
       );
     case "comment_added":
       return (
-        <>
+        <span className="text-muted">
           <span className="font-semibold text-ink">{userName}</span> added a comment
-        </>
+        </span>
       );
     default:
       return (
-        <>
+        <span className="text-muted">
           <span className="font-semibold text-ink">{userName}</span> updated this card
-        </>
+        </span>
       );
   }
 }
@@ -535,11 +535,10 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                 onClick={toggleCompleted}
                 title={card.completed ? "Mark incomplete" : "Mark completed"}
                 aria-label={card.completed ? "Mark incomplete" : "Mark completed"}
-                className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all shrink-0 mt-1 cursor-pointer touch-manipulation ${
-                  card.completed
+                className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all shrink-0 mt-1 cursor-pointer touch-manipulation ${card.completed
                     ? "bg-emerald-500 border-emerald-500 text-white shadow-sm"
                     : "border-muted/40 hover:border-accent hover:bg-accent/10 text-transparent"
-                }`}
+                  }`}
               >
                 <Check size={14} strokeWidth={3} className={card.completed ? "block" : "hidden"} />
               </button>
@@ -549,9 +548,8 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                   value={card.title}
                   onChange={(e) => setCard({ ...card, title: e.target.value })}
                   onBlur={() => save({ title: card.title })}
-                  className={`text-lg sm:text-xl font-bold w-full bg-transparent border-b border-transparent hover:border-line focus:border-accent focus:outline-none transition-colors px-1 py-0.5 rounded ${
-                    card.completed ? "line-through text-muted" : "text-ink"
-                  }`}
+                  className={`text-lg sm:text-xl font-bold w-full bg-transparent border-b border-transparent hover:border-line focus:border-accent focus:outline-none transition-colors px-1 py-0.5 rounded placeholder:text-muted/60 ${card.completed ? "line-through text-muted" : "text-ink"
+                    }`}
                   placeholder="Card title…"
                 />
               </div>
@@ -741,9 +739,8 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                                   key={m.user._id}
                                   type="button"
                                   onClick={() => toggleAssignee(m.user._id)}
-                                  className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
-                                    isAssigned ? "bg-accent/20 text-accent-light font-medium" : "text-ink hover:bg-surface-2"
-                                  }`}
+                                  className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${isAssigned ? "bg-accent/20 text-accent-light font-medium" : "text-ink hover:bg-surface-2"
+                                    }`}
                                 >
                                   <div className="flex items-center gap-2 truncate">
                                     <span
@@ -835,11 +832,10 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                                   key={p}
                                   type="button"
                                   onClick={() => (active ? removeLabel(p) : addLabel(p))}
-                                  className={`text-[11px] px-2 py-0.5 rounded transition-colors cursor-pointer flex items-center gap-1 ${
-                                    active
+                                  className={`text-[11px] px-2 py-0.5 rounded transition-colors cursor-pointer flex items-center gap-1 ${active
                                       ? "bg-accent text-white font-medium"
                                       : "bg-surface-3 hover:bg-surface-2 text-ink border border-line"
-                                  }`}
+                                    }`}
                                 >
                                   <span>{p}</span>
                                   {active ? <X size={10} /> : <Plus size={10} />}
@@ -927,9 +923,8 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
               ) : (
                 <div
                   onClick={() => setIsEditingDescription(true)}
-                  className={`p-3 rounded-xl border border-line/40 hover:border-line hover:bg-surface-2/40 cursor-pointer transition-colors text-sm leading-relaxed ${
-                    description ? "text-ink whitespace-pre-wrap" : "text-muted/60 italic bg-surface-2/20"
-                  }`}
+                  className={`p-3 rounded-xl border border-line/40 hover:border-line hover:bg-surface-2/40 cursor-pointer transition-colors text-sm leading-relaxed ${description ? "text-ink whitespace-pre-wrap" : "text-muted/60 italic bg-surface-2/20"
+                    }`}
                 >
                   {description || "Add a more detailed description…"}
                 </div>
@@ -1087,22 +1082,20 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                   {card.checklist.map((item, i) => (
                     <div
                       key={i}
-                      className={`group flex items-start gap-3 p-2.5 rounded-xl border transition-all ${
-                        item.done
+                      className={`group flex items-start gap-3 p-2.5 rounded-xl border transition-all ${item.done
                           ? "bg-surface-2/20 border-line/30"
                           : "bg-surface-2/40 hover:bg-surface-2 border-line/60 hover:border-accent/40"
-                      }`}
+                        }`}
                     >
                       {/* Styled Theme Checkbox Button */}
                       <button
                         type="button"
                         onClick={() => toggleChecklistItem(i)}
                         aria-label={item.done ? "Mark item incomplete" : "Mark item complete"}
-                        className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all shrink-0 mt-0.5 cursor-pointer touch-manipulation ${
-                          item.done
+                        className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all shrink-0 mt-0.5 cursor-pointer touch-manipulation ${item.done
                             ? "bg-accent border-accent text-white shadow-sm"
                             : "border-line bg-surface-3 hover:border-accent/60"
-                        }`}
+                          }`}
                       >
                         {item.done && <Check size={12} strokeWidth={3} />}
                       </button>
@@ -1110,9 +1103,8 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                       {/* Item Text */}
                       <span
                         onClick={() => toggleChecklistItem(i)}
-                        className={`text-xs sm:text-sm break-words flex-1 cursor-pointer leading-relaxed select-none ${
-                          item.done ? "line-through text-muted/70" : "text-ink font-medium"
-                        }`}
+                        className={`text-xs sm:text-sm break-words flex-1 cursor-pointer leading-relaxed select-none ${item.done ? "line-through text-muted/70" : "text-ink font-medium"
+                          }`}
                       >
                         {item.text}
                       </span>

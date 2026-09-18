@@ -10,6 +10,7 @@ import List from "../components/List.jsx";
 import CardModal from "../components/CardModal.jsx";
 import MembersPanel from "../components/MembersPanel.jsx";
 import FilterPopover from "../components/ui/FilterPopover.jsx";
+import BoardSkeleton from "../components/ui/BoardSkeleton.jsx";
 
 const cardMatchesFilter = (card, f) => {
   if (!f) return true;
@@ -162,7 +163,7 @@ export default function BoardView() {
   };
 
   if (!board) {
-    return <div className="h-[calc(100vh-56px-56px)] flex items-center justify-center text-muted">Loading…</div>;
+    return <BoardSkeleton />;
   }
 
   return (

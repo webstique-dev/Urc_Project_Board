@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { boardGradient } from "../utils/color.js";
 import NewProjectModal from "../components/NewProjectModal.jsx";
 import FilterPopover from "../components/ui/FilterPopover.jsx";
+import DashboardSkeleton from "../components/ui/DashboardSkeleton.jsx";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -21,6 +22,10 @@ export default function Dashboard() {
     load().finally(() => setLoading(false));
     api.get("/auth/users").then((res) => setAllUsers(res.data)).catch(() => {});
   }, []);
+
+  if (loading) {
+    return <DashboardSkeleton />;
+  }
 
   const filterGroups = [
     {
