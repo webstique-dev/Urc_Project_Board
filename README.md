@@ -1,20 +1,20 @@
 # Boards — a Trello-style project tracker
 
 Internal tool for a PM to create projects, assign employees, and track task
-status on drag-and-drop boards — built with React + Tailwind (frontend) and
-Express + MongoDB + Socket.IO (backend).
+status on drag-and-drop boards — built with React + Tailwind (client) and
+Express + MongoDB + Socket.IO (server).
 
 ## Structure
 ```
 trello-clone/
-  backend/    Express API + MongoDB models + Socket.IO
-  frontend/   React (Vite) + Tailwind client
+  server/     Express API + MongoDB models + Socket.IO
+  client/     React (Vite) + Tailwind client
 ```
 
-## 1. Backend setup
+## 1. Server setup
 
 ```bash
-cd backend
+cd server
 npm install
 cp .env.example .env
 ```
@@ -31,10 +31,10 @@ npm run dev
 
 API runs on `http://localhost:5000`.
 
-## 2. Frontend setup
+## 2. Client setup
 
 ```bash
-cd frontend
+cd client
 npm install
 cp .env.example .env
 npm run dev

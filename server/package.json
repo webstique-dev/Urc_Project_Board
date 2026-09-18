@@ -1,7 +1,7 @@
 {
-  "name": "trello-clone-backend",
+  "name": "trello-clone-server",
   "version": "1.0.0",
-  "description": "Backend API for internal project board app (Trello-style)",
+  "description": "Server API for internal project board app (Trello-style)",
   "main": "server.js",
   "type": "module",
   "scripts": {
