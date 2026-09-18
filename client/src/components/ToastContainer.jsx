@@ -1,4 +1,6 @@
 import { useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
+import { Check, AlertCircle, AlertTriangle, Info, X } from "lucide-react";
 
 const TYPE_CONFIG = {
   success: {
@@ -8,20 +10,7 @@ const TYPE_CONFIG = {
     glow: "shadow-[0_4px_24px_rgba(16,185,129,0.15)]",
     progressBg: "bg-emerald-500",
     defaultTitle: "Success",
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="w-4 h-4"
-      >
-        <polyline points="20 6 9 17 4 12" />
-      </svg>
-    ),
+    icon: <Check size={16} strokeWidth={2.5} className="shrink-0" />,
   },
   error: {
     iconBg: "bg-rose-500/15",
@@ -30,22 +19,7 @@ const TYPE_CONFIG = {
     glow: "shadow-[0_4px_24px_rgba(244,63,94,0.15)]",
     progressBg: "bg-rose-500",
     defaultTitle: "Error",
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="w-4 h-4"
-      >
-        <circle cx="12" cy="12" r="10" />
-        <line x1="15" y1="9" x2="9" y2="15" />
-        <line x1="9" y1="9" x2="15" y2="15" />
-      </svg>
-    ),
+    icon: <AlertCircle size={16} strokeWidth={2.5} className="shrink-0" />,
   },
   warning: {
     iconBg: "bg-amber-500/15",
@@ -54,22 +28,7 @@ const TYPE_CONFIG = {
     glow: "shadow-[0_4px_24px_rgba(245,158,11,0.15)]",
     progressBg: "bg-amber-500",
     defaultTitle: "Warning",
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="w-4 h-4"
-      >
-        <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-        <line x1="12" y1="9" x2="12" y2="13" />
-        <line x1="12" y1="17" x2="12.01" y2="17" />
-      </svg>
-    ),
+    icon: <AlertTriangle size={16} strokeWidth={2.5} className="shrink-0" />,
   },
   info: {
     iconBg: "bg-accent/15",
@@ -78,22 +37,7 @@ const TYPE_CONFIG = {
     glow: "shadow-[0_4px_24px_rgba(124,92,255,0.15)]",
     progressBg: "bg-accent",
     defaultTitle: "Notice",
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="w-4 h-4"
-      >
-        <circle cx="12" cy="12" r="10" />
-        <line x1="12" y1="16" x2="12" y2="12" />
-        <line x1="12" y1="8" x2="12.01" y2="8" />
-      </svg>
-    ),
+    icon: <Info size={16} strokeWidth={2.5} className="shrink-0" />,
   },
 };
 
@@ -189,19 +133,7 @@ function ToastItem({ toast, onDismiss }) {
           aria-label="Close notification"
           className="shrink-0 p-1 -mr-1 -mt-1 text-muted hover:text-ink hover:bg-surface-3 rounded-md transition-colors focus:outline-none focus:ring-1 focus:ring-accent/40"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="w-4 h-4"
-          >
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
+          <X size={14} className="shrink-0" />
         </button>
       </div>
 
@@ -226,14 +158,16 @@ export default function ToastContainer({ toasts, removeToast, position = "top-ri
 
   const positionClass = POSITION_CLASSES[position] || POSITION_CLASSES["top-right"];
 
-  return (
+  const content = (
     <div
       aria-label="Notifications"
-      className={`fixed z-50 pointer-events-none flex flex-col gap-2.5 max-w-[calc(100vw-2rem)] sm:max-w-md ${positionClass}`}
+      className={`fixed z-[100] pointer-events-none flex flex-col gap-2.5 max-w-[calc(100vw-2rem)] sm:max-w-md ${positionClass}`}
     >
       {toasts.map((item) => (
         <ToastItem key={item.id} toast={item} onDismiss={removeToast} />
       ))}
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(content, document.body) : content;
 }

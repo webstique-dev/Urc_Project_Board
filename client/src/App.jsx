@@ -28,7 +28,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-base">
       {user && <Navbar />}
-      <div className={user ? "pb-14" : ""}>
+      <div className={user ? "pb-16 sm:pb-14 pb-[calc(4rem+env(safe-area-inset-bottom))]" : ""}>
         <Routes>
           <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
           <Route path="/register" element={user ? <Navigate to="/" /> : <Register />} />

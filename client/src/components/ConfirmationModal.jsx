@@ -1,4 +1,6 @@
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import { Trash2, AlertTriangle, X, Loader2 } from "lucide-react";
 
 export default function ConfirmationModal({
   isOpen = true,
@@ -44,18 +46,18 @@ export default function ConfirmationModal({
 
   if (!isOpen) return null;
 
-  return (
+  const content = (
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirmation-modal-title"
       aria-describedby="confirmation-modal-description"
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[70] px-4 animate-in fade-in duration-200"
+      className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-[70] p-4 animate-in fade-in duration-200"
       onClick={!loading ? onClose : undefined}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-surface border border-line rounded-xl w-full max-w-sm sm:max-w-md p-5 sm:p-6 shadow-pop text-ink relative transform transition-all duration-200 animate-in zoom-in-95"
+        className="bg-surface border border-line rounded-xl sm:rounded-2xl w-full max-w-sm sm:max-w-md p-5 sm:p-6 shadow-pop text-ink relative transform transition-all duration-200 animate-in zoom-in-95"
       >
         <div className="flex items-start gap-3.5 sm:gap-4">
           {/* Icon */}
@@ -69,37 +71,9 @@ export default function ConfirmationModal({
             {icon ? (
               icon
             ) : isDanger ? (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="w-5 h-5"
-              >
-                <path d="M3 6h18" />
-                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                <line x1="10" y1="11" x2="10" y2="17" />
-                <line x1="14" y1="11" x2="14" y2="17" />
-              </svg>
+              <Trash2 size={20} className="shrink-0" />
             ) : (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="w-5 h-5"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
+              <AlertTriangle size={20} className="shrink-0" />
             )}
           </div>
 
@@ -124,22 +98,10 @@ export default function ConfirmationModal({
             <button
               type="button"
               onClick={onClose}
-              aria-label="Close"
-              className="text-muted hover:text-ink hover:bg-surface-3 p-1 rounded-lg transition-colors focus:outline-none"
+              aria-label="Close dialog"
+              className="text-muted hover:text-ink hover:bg-surface-3 w-9 h-9 -mr-1.5 -mt-1.5 flex items-center justify-center rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 touch-manipulation"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="w-4 h-4"
-              >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
+              <X size={16} />
             </button>
           )}
         </div>
@@ -150,7 +112,7 @@ export default function ConfirmationModal({
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="px-4 py-2 text-sm font-medium rounded-lg bg-surface-3 hover:bg-surface-2 text-ink/90 border border-line transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-accent/40"
+            className="px-4 py-2.5 text-xs sm:text-sm font-medium rounded-lg bg-surface-3 hover:bg-surface-2 text-ink/90 border border-line transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-accent/40 touch-manipulation"
           >
             {cancelText}
           </button>
@@ -159,38 +121,19 @@ export default function ConfirmationModal({
             type="button"
             onClick={onConfirm}
             disabled={loading || confirmDisabled}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-60 focus:outline-none focus:ring-2 ${
+            className={`px-4 py-2.5 text-xs sm:text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-60 focus:outline-none focus:ring-2 touch-manipulation ${
               isDanger
                 ? "bg-rose-600 hover:bg-rose-500 text-white focus:ring-rose-500/40 shadow-lg shadow-rose-950/30"
                 : "bg-accent hover:bg-accent-dark text-white focus:ring-accent/40"
             }`}
           >
-            {loading && (
-              <svg
-                className="animate-spin -ml-0.5 w-4 h-4 text-white"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8v8H4z"
-                />
-              </svg>
-            )}
+            {loading && <Loader2 size={16} className="animate-spin -ml-0.5 text-white" />}
             <span>{loading ? "Processing…" : finalConfirmText}</span>
           </button>
         </div>
       </div>
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(content, document.body) : content;
 }

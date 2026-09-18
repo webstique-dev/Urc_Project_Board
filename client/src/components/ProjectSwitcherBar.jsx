@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { Plus } from "lucide-react";
 import api from "../api/axios.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import NewProjectModal from "./NewProjectModal.jsx";
@@ -20,36 +21,54 @@ export default function ProjectSwitcherBar() {
 
   return (
     <>
-      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-line bg-surface/90 backdrop-blur">
-        <div className="max-w-[1400px] mx-auto px-4 h-12 flex items-center gap-1.5 overflow-x-auto">
-          {boards.map((board) => {
-            const active = board._id === activeBoardId;
-            return (
-              <button
-                key={board._id}
-                onClick={() => navigate(`/boards/${board._id}`)}
-                className={`flex items-center gap-1.5 shrink-0 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors ${
-                  active
-                    ? "bg-accent/15 text-accent-light"
-                    : "text-muted hover:text-ink hover:bg-white/5"
-                }`}
-              >
-                <span
-                  className="w-1.5 h-1.5 rounded-full shrink-0"
-                  style={{ backgroundColor: board.color || "#7C5CFF" }}
-                />
-                {board.title}
-              </button>
-            );
-          })}
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-line bg-surface/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
+        <div className="max-w-[1400px] mx-auto px-3 sm:px-4 h-12 flex items-center justify-between gap-2">
+          {/* Scrollable Project Tabs */}
+          <div
+            tabIndex={0}
+            aria-label="Project tabs"
+            className="flex-1 flex items-center gap-1.5 overflow-x-auto scrollbar-hide no-scrollbar scroll-smooth py-1 focus:outline-none focus:ring-1 focus:ring-accent/40 rounded-lg"
+            style={{
+              WebkitOverflowScrolling: "touch",
+              scrollbarWidth: "none",
+              msOverflowStyle: "none",
+            }}
+          >
+            {boards.map((board) => {
+              const active = board._id === activeBoardId;
+              return (
+                <button
+                  key={board._id}
+                  onClick={() => navigate(`/boards/${board._id}`)}
+                  className={`flex items-center gap-1.5 shrink-0 text-xs font-medium px-3 py-2 sm:py-1.5 rounded-lg transition-colors touch-manipulation focus:outline-none focus:ring-2 focus:ring-accent/40 ${
+                    active
+                      ? "bg-accent/15 text-accent-light"
+                      : "text-muted hover:text-ink hover:bg-white/5 active:bg-white/10"
+                  }`}
+                >
+                  <span
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={{ backgroundColor: board.color || "#7C5CFF" }}
+                  />
+                  <span className="max-w-[140px] sm:max-w-[200px] truncate">{board.title}</span>
+                </button>
+              );
+            })}
+          </div>
 
+          {/* Sticky / Dedicated Add Project Button for PMs */}
           {user?.role === "admin" && (
-            <button
-              onClick={() => setShowNewProject(true)}
-              className="flex items-center gap-1 shrink-0 text-xs font-medium px-3 py-1.5 rounded-lg text-muted hover:text-accent-light hover:bg-accent/10 transition-colors ml-1 border border-dashed border-line"
-            >
-              + Add project
-            </button>
+            <div className="shrink-0 pl-1 border-l border-line/60">
+              <button
+                onClick={() => setShowNewProject(true)}
+                aria-label="Add new project"
+                className="flex items-center gap-1 shrink-0 text-xs font-medium px-2.5 py-1.5 rounded-lg text-accent-light bg-accent/10 hover:bg-accent/20 border border-dashed border-accent/40 transition-colors touch-manipulation focus:outline-none focus:ring-2 focus:ring-accent/40"
+              >
+                <Plus size={14} className="shrink-0" />
+                <span className="hidden xs:inline sm:inline">Add project</span>
+                <span className="xs:hidden sm:hidden">Project</span>
+              </button>
+            </div>
           )}
         </div>
       </div>
