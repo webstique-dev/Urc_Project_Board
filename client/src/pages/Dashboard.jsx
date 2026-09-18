@@ -46,7 +46,7 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6 sm:py-10">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
+      <div className="relative z-20 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-ink tracking-tight">Projects</h1>
           <p className="text-xs sm:text-sm text-muted mt-1">

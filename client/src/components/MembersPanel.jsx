@@ -1,19 +1,33 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Plus, Trash2 } from "lucide-react";
+import { X, Plus, Crown, ShieldCheck } from "lucide-react";
 import api from "../api/axios.js";
 import Select from "./ui/Select.jsx";
+import ConfirmationModal from "./ConfirmationModal.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 import { useToast } from "../context/ToastContext.jsx";
 
 export default function MembersPanel({ board, onClose, onChanged }) {
+  const { user: currentUser } = useAuth();
   const toast = useToast();
   const [allUsers, setAllUsers] = useState([]);
   const [selected, setSelected] = useState("");
   const [isAdding, setIsAdding] = useState(false);
+  const [demoteTarget, setDemoteTarget] = useState(null);
+  const [removeTarget, setRemoveTarget] = useState(null);
+  const [isUpdatingRole, setIsUpdatingRole] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
 
   useEffect(() => {
     api.get("/auth/users").then((res) => setAllUsers(res.data));
   }, []);
+
+  const isCurrentUserBoardManager =
+    currentUser?.role === "admin" ||
+    board.members.some((m) => m.user._id === currentUser?._id && m.role === "manager");
+
+  const managerCount = board.members.filter((m) => m.role === "manager").length;
+  const isSoleManager = managerCount <= 1;
 
   const memberIds = board.members.map((m) => m.user._id);
   const nonMembers = allUsers.filter((u) => !memberIds.includes(u._id));
@@ -43,14 +57,55 @@ export default function MembersPanel({ board, onClose, onChanged }) {
     }
   };
 
-  const removeMember = async (userId) => {
-    const userToRemove = board.members.find((m) => m.user._id === userId)?.user;
+  const executeRoleUpdate = async (userId, newRole) => {
+    const targetUser = board.members.find((m) => m.user._id === userId)?.user;
+    setIsUpdatingRole(true);
     try {
-      const res = await api.delete(`/boards/${board._id}/members/${userId}`);
-      onChanged({ ...board, members: res.data.members });
-      toast.info(`Removed ${userToRemove?.name || "member"} from project`, { title: "Member Removed" });
+      const res = await api.patch(`/boards/${board._id}/members/${userId}`, { role: newRole });
+      onChanged(res.data);
+      toast.success(
+        `Changed ${targetUser?.name || "member"}'s board role to ${newRole === "manager" ? "Manager" : "Member"}`,
+        { title: "Role Updated" }
+      );
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to update role", { title: "Error" });
+    } finally {
+      setIsUpdatingRole(false);
+    }
+  };
+
+  const handleRoleChange = (member, newRole) => {
+    if (member.role === newRole) return;
+    if (newRole === "member") {
+      if (member.role === "manager" && isSoleManager) {
+        toast.error("Assign another manager before demoting this one", { title: "Cannot Demote" });
+        return;
+      }
+      setDemoteTarget(member);
+    } else {
+      executeRoleUpdate(member.user._id, "manager");
+    }
+  };
+
+  const confirmDemote = async () => {
+    if (!demoteTarget) return;
+    await executeRoleUpdate(demoteTarget.user._id, "member");
+    setDemoteTarget(null);
+  };
+
+  const confirmRemove = async () => {
+    if (!removeTarget) return;
+    const userToRemove = removeTarget.user;
+    setIsRemoving(true);
+    try {
+      const res = await api.delete(`/boards/${board._id}/members/${userToRemove._id}`);
+      onChanged(res.data);
+      toast.info(`Removed ${userToRemove.name || "member"} from project`, { title: "Member Removed" });
+      setRemoveTarget(null);
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to remove member", { title: "Error" });
+    } finally {
+      setIsRemoving(false);
     }
   };
 
@@ -63,13 +118,15 @@ export default function MembersPanel({ board, onClose, onChanged }) {
       onClick={onClose}
     >
       <div
-        className="bg-surface border border-line rounded-xl sm:rounded-2xl w-full max-w-md p-5 sm:p-6 shadow-pop text-ink"
+        className="bg-surface border border-line rounded-xl sm:rounded-2xl w-full max-w-lg p-5 sm:p-6 shadow-pop text-ink"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between pb-3 border-b border-line mb-4">
           <div className="min-w-0 flex-1 pr-2">
             <h3 className="text-base font-semibold text-ink truncate">Team on {board.title}</h3>
-            <p className="text-xs text-muted mt-0.5">{board.members.length} active member{board.members.length === 1 ? "" : "s"}</p>
+            <p className="text-xs text-muted mt-0.5">
+              {board.members.length} active member{board.members.length === 1 ? "" : "s"} · {managerCount} manager{managerCount === 1 ? "" : "s"}
+            </p>
           </div>
           <button
             type="button"
@@ -81,37 +138,113 @@ export default function MembersPanel({ board, onClose, onChanged }) {
           </button>
         </div>
 
-        <div className="space-y-1.5 mb-4 max-h-64 overflow-y-auto scrollbar-hide pr-1">
-          {board.members.map((m) => (
-            <div
-              key={m.user._id}
-              className="flex items-center justify-between gap-2 p-2 rounded-lg bg-surface-2/40 hover:bg-surface-2 transition-colors"
-            >
-              <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                <span
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-xs text-white font-semibold shrink-0 shadow-sm"
-                  style={{ backgroundColor: m.user.avatarColor || "#7C5CFF" }}
-                >
-                  {m.user.name?.[0]?.toUpperCase()}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-ink truncate">{m.user.name}</p>
-                </div>
-                {m.role === "manager" && (
-                  <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-accent/20 text-accent-light font-semibold shrink-0">
-                    Manager
-                  </span>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => removeMember(m.user._id)}
-                className="text-xs font-medium text-muted hover:text-rose-400 hover:bg-rose-500/10 px-2.5 py-1.5 rounded-lg transition-colors shrink-0 touch-manipulation"
+        <div className="space-y-2 mb-4 max-h-72 overflow-y-auto scrollbar-hide pr-1">
+          {board.members.map((m) => {
+            const isThisMemberSoleManager = m.role === "manager" && isSoleManager;
+
+            return (
+              <div
+                key={m.user._id}
+                className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-surface-2/40 hover:bg-surface-2 transition-colors"
               >
-                Remove
-              </button>
-            </div>
-          ))}
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <span
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-xs text-white font-semibold shrink-0 shadow-sm"
+                    style={{ backgroundColor: m.user.avatarColor || "#7C5CFF" }}
+                  >
+                    {m.user.name?.[0]?.toUpperCase()}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-sm font-medium text-ink truncate">{m.user.name}</p>
+                      {m.user.role === "admin" && (
+                        <span
+                          className="text-[10px] uppercase tracking-wider px-1.5 py-0.2 rounded-full bg-accent/20 text-accent-light font-semibold shrink-0"
+                          title="Workspace PM"
+                        >
+                          PM
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted truncate">{m.user.email}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  {/* Board Role Control */}
+                  {isCurrentUserBoardManager ? (
+                    isThisMemberSoleManager ? (
+                      <div className="flex flex-col items-end">
+                        <span
+                          className="text-[10px] uppercase tracking-wider px-2 py-1 rounded-lg bg-accent/20 text-accent-light font-semibold flex items-center gap-1 cursor-default border border-accent/30"
+                          title="Sole manager — assign another manager before demoting"
+                        >
+                          <Crown size={11} className="shrink-0" />
+                          <span>Manager</span>
+                        </span>
+                        <span className="text-[9px] text-muted/60 mt-0.5">Sole manager</span>
+                      </div>
+                    ) : (
+                      <div className="w-28 sm:w-32">
+                        <Select
+                          value={m.role}
+                          onChange={(newRole) => handleRoleChange(m, newRole)}
+                          options={[
+                            {
+                              value: "manager",
+                              label: "Manager",
+                              icon: <Crown size={12} className="text-accent-light shrink-0" />,
+                            },
+                            {
+                              value: "member",
+                              label: "Member",
+                              icon: <ShieldCheck size={12} className="text-muted shrink-0" />,
+                            },
+                          ]}
+                          className="text-xs"
+                          buttonClassName="py-1 px-2 text-xs h-7"
+                          menuClassName="w-32 right-0 left-auto"
+                        />
+                      </div>
+                    )
+                  ) : m.role === "manager" ? (
+                    <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-accent/20 text-accent-light font-semibold shrink-0 flex items-center gap-1">
+                      <Crown size={11} className="shrink-0" />
+                      <span>Manager</span>
+                    </span>
+                  ) : (
+                    <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/10 text-muted font-semibold shrink-0">
+                      Member
+                    </span>
+                  )}
+
+                  {/* Remove Member Action */}
+                  {isCurrentUserBoardManager && (
+                    isThisMemberSoleManager ? (
+                      <button
+                        type="button"
+                        disabled
+                        aria-label="Cannot remove sole manager"
+                        title="Assign another manager before removing this one"
+                        className="text-xs font-medium text-muted/30 cursor-not-allowed px-2 py-1 rounded-lg shrink-0"
+                      >
+                        Remove
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setRemoveTarget(m)}
+                        aria-label={`Remove ${m.user.name}`}
+                        className="text-xs font-medium text-muted hover:text-rose-400 hover:bg-rose-500/10 px-2 py-1 rounded-lg transition-colors shrink-0 touch-manipulation cursor-pointer"
+                      >
+                        Remove
+                      </button>
+                    )
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {nonMembers.length === 0 ? (
@@ -149,6 +282,30 @@ export default function MembersPanel({ board, onClose, onChanged }) {
           </div>
         )}
       </div>
+
+      {/* Confirmation modal for demoting a manager */}
+      <ConfirmationModal
+        isOpen={!!demoteTarget}
+        onClose={() => setDemoteTarget(null)}
+        onConfirm={confirmDemote}
+        title="Demote manager"
+        message={`Are you sure you want to demote ${demoteTarget?.user?.name} to Member? They will lose manager permissions on this board.`}
+        confirmText="Demote to member"
+        variant="warning"
+        loading={isUpdatingRole}
+      />
+
+      {/* Confirmation modal for removing a member */}
+      <ConfirmationModal
+        isOpen={!!removeTarget}
+        onClose={() => setRemoveTarget(null)}
+        onConfirm={confirmRemove}
+        title="Remove member"
+        message={`Are you sure you want to remove ${removeTarget?.user?.name} from ${board.title}?`}
+        confirmText="Remove member"
+        isDestructive={true}
+        loading={isRemoving}
+      />
     </div>
   );
 

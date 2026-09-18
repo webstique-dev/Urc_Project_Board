@@ -40,18 +40,23 @@ export default function BoardView() {
     user?.role === "admin" ||
     board?.members?.some((m) => m.user._id === user?._id && m.role === "manager");
 
+  const loadBoard = useCallback(() => {
+    api.get(`/boards/${boardId}`).then((res) => setBoard(res.data));
+  }, [boardId]);
+
   const loadLists = useCallback(() => {
     api.get(`/lists/board/${boardId}`).then((res) => setLists(res.data));
   }, [boardId]);
 
   useEffect(() => {
-    api.get(`/boards/${boardId}`).then((res) => setBoard(res.data));
+    loadBoard();
     loadLists();
-  }, [boardId, loadLists]);
+  }, [boardId, loadBoard, loadLists]);
 
   const { emitAction } = useSocket(boardId, {
     "lists:changed": loadLists,
     "card:changed": loadLists,
+    "board:changed": loadBoard,
   });
   const broadcastRefresh = (event) => emitAction(event, { by: user?._id });
 
@@ -166,7 +171,7 @@ export default function BoardView() {
       style={{ background: boardGradient(board.color) }}
     >
       {/* Responsive Board Header */}
-      <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-white/10 bg-black/25 backdrop-blur-md flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="relative z-20 px-4 sm:px-6 py-3 sm:py-4 border-b border-white/10 bg-black/25 backdrop-blur-md flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight break-words">{board.title}</h1>
           {board.description && (
@@ -305,7 +310,10 @@ export default function BoardView() {
         <MembersPanel
           board={board}
           onClose={() => setShowMembers(false)}
-          onChanged={(updated) => setBoard(updated)}
+          onChanged={(updated) => {
+            setBoard(updated);
+            broadcastRefresh("board:changed");
+          }}
         />
       )}
     </div>

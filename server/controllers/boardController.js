@@ -12,7 +12,7 @@ export const getBoards = async (req, res) => {
 
     const boards = await Board.find({ ...filter, archived: false })
       .populate("createdBy", "name email")
-      .populate("members.user", "name email avatarColor")
+      .populate("members.user", "name email avatarColor role")
       .sort({ createdAt: -1 });
 
     res.json(boards);
@@ -26,7 +26,7 @@ export const getBoard = async (req, res) => {
   try {
     const board = await Board.findById(req.params.id)
       .populate("createdBy", "name email")
-      .populate("members.user", "name email avatarColor");
+      .populate("members.user", "name email avatarColor role");
     if (!board) return res.status(404).json({ message: "Board not found" });
     res.json(board);
   } catch (err) {
@@ -52,7 +52,7 @@ export const createBoard = async (req, res) => {
       defaultLists.map((title, i) => ({ title, board: board._id, order: i }))
     );
 
-    const populated = await board.populate("members.user", "name email avatarColor");
+    const populated = await board.populate("members.user", "name email avatarColor role");
     res.status(201).json(populated);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -62,7 +62,9 @@ export const createBoard = async (req, res) => {
 // PATCH /api/boards/:id
 export const updateBoard = async (req, res) => {
   try {
-    const board = await Board.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const board = await Board.findByIdAndUpdate(req.params.id, req.body, { new: true })
+      .populate("createdBy", "name email")
+      .populate("members.user", "name email avatarColor role");
     res.json(board);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -93,7 +95,42 @@ export const addMember = async (req, res) => {
 
     board.members.push({ user: userId, role: role === "manager" ? "manager" : "member" });
     await board.save();
-    const populated = await board.populate("members.user", "name email avatarColor");
+    const populated = await board.populate("members.user", "name email avatarColor role");
+    res.json(populated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// PATCH /api/boards/:id/members/:userId  { role: "manager" | "member" }
+export const updateMemberRole = async (req, res) => {
+  try {
+    const { role } = req.body;
+    if (!["manager", "member"].includes(role)) {
+      return res.status(400).json({ message: "Invalid role. Must be 'manager' or 'member'" });
+    }
+
+    const board = await Board.findById(req.params.id);
+    if (!board) return res.status(404).json({ message: "Board not found" });
+
+    const memberIndex = board.members.findIndex((m) => m.user.equals(req.params.userId));
+    if (memberIndex === -1) {
+      return res.status(404).json({ message: "Member not found on this board" });
+    }
+
+    const currentRole = board.members[memberIndex].role;
+    if (currentRole === "manager" && role === "member") {
+      const managerCount = board.members.filter((m) => m.role === "manager").length;
+      if (managerCount <= 1) {
+        return res.status(400).json({
+          message: "Assign another manager before demoting this one",
+        });
+      }
+    }
+
+    board.members[memberIndex].role = role;
+    await board.save();
+    const populated = await board.populate("members.user", "name email avatarColor role");
     res.json(populated);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -106,9 +143,24 @@ export const removeMember = async (req, res) => {
     const board = await Board.findById(req.params.id);
     if (!board) return res.status(404).json({ message: "Board not found" });
 
+    const member = board.members.find((m) => m.user.equals(req.params.userId));
+    if (!member) {
+      return res.status(404).json({ message: "Member not found on this board" });
+    }
+
+    if (member.role === "manager") {
+      const managerCount = board.members.filter((m) => m.role === "manager").length;
+      if (managerCount <= 1) {
+        return res.status(400).json({
+          message: "Assign another manager before removing this one",
+        });
+      }
+    }
+
     board.members = board.members.filter((m) => !m.user.equals(req.params.userId));
     await board.save();
-    res.json(board);
+    const populated = await board.populate("members.user", "name email avatarColor role");
+    res.json(populated);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
