@@ -1,0 +1,19 @@
+{
+  "name": "trello-clone",
+  "version": "1.0.0",
+  "description": "Internal tool for a PM to create projects, assign employees, and track task status on drag-and-drop boards — built with React + Tailwind (client) and Express + MongoDB + Socket.IO (server).",
+  "main": "index.js",
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git@github-work:webstique-dev/Urc_Project_Board.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.2"
+  }
+}

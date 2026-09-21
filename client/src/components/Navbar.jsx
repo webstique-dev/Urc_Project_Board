@@ -25,7 +25,7 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="border-b border-line bg-surface/90 backdrop-blur-md sticky top-0 z-40 transition-colors">
+      <header className="border-b border-line bg-surface/95 backdrop-blur-sm sticky top-0 z-40 transition-colors shadow-sm">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-6 lg:gap-8">
             <Link
@@ -38,26 +38,24 @@ export default function Navbar() {
                 alt="URC Building Values"
                 className="h-7 sm:h-8 w-auto object-contain transition-transform group-hover:scale-105"
               />
-              <span className="font-semibold text-ink text-sm sm:text-base tracking-tight">
+              {/* <span className="font-semibold text-ink text-sm sm:text-base tracking-tight">
                 URC Building Values
-              </span>
+              </span> */}
             </Link>
 
             {/* Desktop Navigation Links */}
             <nav className="hidden md:flex items-center gap-1 text-sm font-medium text-muted">
               <Link
                 to="/"
-                className={`px-3 py-1.5 rounded-lg transition-colors ${
-                  location.pathname === "/" ? "text-ink bg-white/5" : "hover:text-ink hover:bg-white/5"
-                }`}
+                className={`px-3 py-1.5 rounded-lg transition-colors ${location.pathname === "/" ? "text-ink bg-surface-2 font-semibold" : "hover:text-ink hover:bg-surface-2/60"
+                  }`}
               >
                 Projects
               </Link>
               <Link
                 to="/my-tasks"
-                className={`px-3 py-1.5 rounded-lg transition-colors ${
-                  location.pathname === "/my-tasks" ? "text-ink bg-white/5" : "hover:text-ink hover:bg-white/5"
-                }`}
+                className={`px-3 py-1.5 rounded-lg transition-colors ${location.pathname === "/my-tasks" ? "text-ink bg-surface-2 font-semibold" : "hover:text-ink hover:bg-surface-2/60"
+                  }`}
               >
                 My tasks
               </Link>
@@ -69,14 +67,14 @@ export default function Navbar() {
             <div className="flex items-center gap-2">
               <span
                 className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0 shadow-sm"
-                style={{ backgroundColor: user?.avatarColor || "#7C5CFF" }}
+                style={{ backgroundColor: user?.avatarColor || "#B45309" }}
                 title={user?.name}
               >
                 {user?.name?.[0]?.toUpperCase()}
               </span>
               <span className="text-sm font-medium text-ink max-w-[150px] truncate">{user?.name}</span>
               {user?.role === "admin" && (
-                <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-accent/20 text-accent-light font-semibold">
+                <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-surface-3 text-ink font-semibold">
                   PM
                 </span>
               )}
@@ -85,7 +83,7 @@ export default function Navbar() {
             <button
               type="button"
               onClick={() => setShowSignoutModal(true)}
-              className="text-xs font-medium text-muted hover:text-ink hover:bg-white/5 px-2.5 py-1.5 rounded-lg transition-colors ml-1 focus:outline-none focus:ring-2 focus:ring-accent/40 flex items-center gap-1.5"
+              className="text-xs font-medium text-muted hover:text-ink hover:bg-surface-2 px-2.5 py-1.5 rounded-lg transition-colors ml-1 focus:outline-none focus:ring-2 focus:ring-accent/40 flex items-center gap-1.5 cursor-pointer"
             >
               <LogOut size={13} className="shrink-0" />
               <span>Sign out</span>
@@ -96,7 +94,7 @@ export default function Navbar() {
           <div className="flex md:hidden items-center gap-2">
             <span
               className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-semibold shadow-sm"
-              style={{ backgroundColor: user?.avatarColor || "#7C5CFF" }}
+              style={{ backgroundColor: user?.avatarColor || "#B45309" }}
               title={user?.name}
             >
               {user?.name?.[0]?.toUpperCase()}
@@ -107,7 +105,7 @@ export default function Navbar() {
               onClick={() => setMobileMenuOpen((prev) => !prev)}
               aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
               aria-expanded={mobileMenuOpen}
-              className="w-10 h-10 -mr-2 flex items-center justify-center text-muted hover:text-ink hover:bg-white/5 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40"
+              className="w-10 h-10 -mr-2 flex items-center justify-center text-muted hover:text-ink hover:bg-surface-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 cursor-pointer"
             >
               {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
@@ -116,13 +114,13 @@ export default function Navbar() {
 
         {/* Mobile Dropdown Menu Below MD */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-line bg-surface/95 backdrop-blur-xl px-4 py-3 space-y-3 shadow-pop animate-in slide-in-from-top-2 duration-150">
+          <div className="md:hidden border-t border-line bg-surface/98 backdrop-blur-md px-4 py-3 space-y-3 shadow-pop animate-in slide-in-from-top-2 duration-150">
             {/* User Identity on Mobile */}
             <div className="flex items-center justify-between py-2 px-1 border-b border-line/60">
               <div className="flex items-center gap-2.5">
                 <span
                   className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0"
-                  style={{ backgroundColor: user?.avatarColor || "#7C5CFF" }}
+                  style={{ backgroundColor: user?.avatarColor || "#B45309" }}
                 >
                   {user?.name?.[0]?.toUpperCase()}
                 </span>
@@ -132,41 +130,39 @@ export default function Navbar() {
                 </div>
               </div>
               {user?.role === "admin" && (
-                <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-accent/20 text-accent-light font-semibold">
+                <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-surface-3 text-ink font-semibold">
                   PM
                 </span>
               )}
             </div>
 
-            {/* Mobile Nav Links (44px min touch height) */}
-            <nav className="flex flex-col space-y-1">
+            {/* Mobile Nav Links */}
+            <nav className="space-y-1">
               <Link
                 to="/"
                 onClick={closeMobileMenu}
-                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  location.pathname === "/"
-                    ? "bg-accent/15 text-accent-light"
-                    : "text-muted hover:text-ink hover:bg-white/5"
-                }`}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${location.pathname === "/"
+                    ? "bg-surface-2 text-ink font-semibold"
+                    : "text-muted hover:text-ink hover:bg-surface-2/60"
+                  }`}
               >
-                <LayoutGrid size={16} className="shrink-0" />
-                Projects
+                <LayoutGrid size={18} />
+                <span>Projects</span>
               </Link>
               <Link
                 to="/my-tasks"
                 onClick={closeMobileMenu}
-                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  location.pathname === "/my-tasks"
-                    ? "bg-accent/15 text-accent-light"
-                    : "text-muted hover:text-ink hover:bg-white/5"
-                }`}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${location.pathname === "/my-tasks"
+                    ? "bg-surface-2 text-ink font-semibold"
+                    : "text-muted hover:text-ink hover:bg-surface-2/60"
+                  }`}
               >
-                <CheckSquare size={16} className="shrink-0" />
-                My tasks
+                <CheckSquare size={18} />
+                <span>My tasks</span>
               </Link>
             </nav>
 
-            {/* Mobile Sign out button */}
+            {/* Mobile Logout Button */}
             <div className="pt-2 border-t border-line/60">
               <button
                 type="button"
@@ -174,10 +170,10 @@ export default function Navbar() {
                   setMobileMenuOpen(false);
                   setShowSignoutModal(true);
                 }}
-                className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
               >
-                <LogOut size={16} className="shrink-0" />
-                Sign out
+                <LogOut size={18} />
+                <span>Sign out</span>
               </button>
             </div>
           </div>

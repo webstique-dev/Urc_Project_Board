@@ -43,7 +43,7 @@ export default function NewProjectModal({ onClose, onCreated }) {
       role="dialog"
       aria-modal="true"
       aria-label="New project"
-      className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 z-[60] animate-in fade-in duration-200"
+      className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 z-[60] animate-in fade-in duration-200"
       onClick={onClose}
     >
       <form
@@ -57,14 +57,14 @@ export default function NewProjectModal({ onClose, onCreated }) {
             type="button"
             onClick={onClose}
             aria-label="Close modal"
-            className="w-10 h-10 -mr-2 shrink-0 flex items-center justify-center text-muted hover:text-ink hover:bg-surface-3 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 touch-manipulation"
+            className="w-10 h-10 -mr-2 shrink-0 flex items-center justify-center text-muted hover:text-ink hover:bg-surface-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 touch-manipulation"
           >
             <X size={18} />
           </button>
         </div>
 
         {error && (
-          <p className="text-sm text-rose-300 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2 mb-3.5">
+          <p className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 mb-3.5">
             {error}
           </p>
         )}
@@ -79,7 +79,7 @@ export default function NewProjectModal({ onClose, onCreated }) {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Client Website Redesign"
-              className="w-full text-base sm:text-sm rounded-lg bg-surface-3 border border-line px-3.5 py-2.5 text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent"
+              className="w-full text-base sm:text-sm rounded-lg bg-surface border border-slate-300 px-3.5 py-2.5 text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-colors"
             />
           </div>
 
@@ -92,7 +92,7 @@ export default function NewProjectModal({ onClose, onCreated }) {
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
               placeholder="What's this project about?"
-              className="w-full text-base sm:text-sm rounded-lg bg-surface-3 border border-line px-3.5 py-2.5 text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/40 resize-none"
+              className="w-full text-base sm:text-sm rounded-lg bg-surface border border-slate-300 px-3.5 py-2.5 text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent resize-none transition-colors"
             />
           </div>
 
@@ -107,7 +107,7 @@ export default function NewProjectModal({ onClose, onCreated }) {
                   type="button"
                   onClick={() => setColor(c)}
                   className={`w-8 h-8 rounded-full flex items-center justify-center transition-all touch-manipulation focus:outline-none ${
-                    color === c ? "ring-2 ring-white ring-offset-2 ring-offset-surface scale-110" : "hover:scale-105"
+                    color === c ? "ring-2 ring-accent ring-offset-2 ring-offset-surface scale-110" : "hover:scale-105"
                   }`}
                   style={{ backgroundColor: c }}
                   aria-label={`Select color ${c}`}

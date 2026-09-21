@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Card from "../models/Card.js";
 import List from "../models/List.js";
 
@@ -113,6 +114,28 @@ export const updateCard = async (req, res) => {
           timestamp: new Date(),
         });
       }
+    }
+
+    if (updates.checklists && Array.isArray(updates.checklists)) {
+      updates.checklists = updates.checklists.map((cl) => {
+        const cleanCl = {
+          title: cl.title || "Checklist",
+          items: (cl.items || []).map((it) => {
+            const cleanItem = {
+              text: it.text,
+              done: Boolean(it.done),
+            };
+            if (it._id && mongoose.Types.ObjectId.isValid(it._id) && String(it._id) !== "legacy") {
+              cleanItem._id = it._id;
+            }
+            return cleanItem;
+          }),
+        };
+        if (cl._id && mongoose.Types.ObjectId.isValid(cl._id) && String(cl._id) !== "legacy") {
+          cleanCl._id = cl._id;
+        }
+        return cleanCl;
+      });
     }
 
     // Apply updates
@@ -275,6 +298,47 @@ export const addAttachment = async (req, res) => {
       action: "attachment_added",
       user: req.user._id,
       meta: { label: attachment.label, url },
+      timestamp: new Date(),
+    });
+
+    await card.save();
+    const populated = await populateCard(Card.findById(card._id));
+    res.status(201).json(populated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// POST /api/cards/:id/attachments/upload (multipart/form-data with file)
+export const uploadFileAttachment = async (req, res) => {
+  try {
+    const card = await Card.findById(req.params.id);
+    if (!card) return res.status(404).json({ message: "Card not found" });
+
+    if (!req.file) {
+      return res.status(400).json({ message: "No file was uploaded" });
+    }
+
+    const fileUrl = `/uploads/${req.file.filename}`;
+    const displayName = req.body.label || req.file.originalname;
+
+    const attachment = {
+      type: "file",
+      url: fileUrl,
+      label: displayName,
+      originalName: req.file.originalname,
+      filename: req.file.filename,
+      mimeType: req.file.mimetype,
+      size: req.file.size,
+      addedBy: req.user._id,
+      createdAt: new Date(),
+    };
+
+    card.attachments.push(attachment);
+    card.activityLog.push({
+      action: "attachment_added",
+      user: req.user._id,
+      meta: { label: attachment.label, url: fileUrl, originalName: req.file.originalname },
       timestamp: new Date(),
     });
 

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Filter, ChevronDown, Check } from "lucide-react";
 
 /**
- * Reusable dark-themed Filter Popover component
+ * Reusable light-themed Filter Popover component
  *
  * Props:
  * - groups: Array<{
@@ -115,15 +115,15 @@ export default function FilterPopover({
         onClick={() => setIsOpen((prev) => !prev)}
         className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs sm:text-sm font-medium transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-accent/40 touch-manipulation shadow-sm cursor-pointer select-none ${
           totalActive > 0
-            ? "bg-accent/20 border border-accent/50 text-accent-light hover:bg-accent/30"
-            : "bg-surface-3 hover:bg-surface-2 border border-line text-ink hover:border-line/80"
+            ? "bg-accent/10 border border-accent/30 text-accent font-semibold hover:bg-accent/15"
+            : "bg-surface hover:bg-surface-2 border border-line text-ink hover:border-line/80 shadow-sm"
         } ${isOpen ? "ring-2 ring-accent/40 border-accent" : ""} ${buttonClassName}`}
       >
         {/* Funnel Icon */}
         <Filter
           size={14}
           className={`shrink-0 transition-colors ${
-            totalActive > 0 ? "text-accent-light" : "text-muted"
+            totalActive > 0 ? "text-accent" : "text-muted"
           }`}
         />
 
@@ -140,7 +140,7 @@ export default function FilterPopover({
         <ChevronDown
           size={14}
           className={`text-muted shrink-0 transition-transform duration-200 ${
-            isOpen ? "rotate-180 text-accent-light" : ""
+            isOpen ? "rotate-180 text-accent" : ""
           }`}
         />
       </button>
@@ -169,7 +169,7 @@ export default function FilterPopover({
                         {group.title}
                       </h4>
                       {groupSelected.length > 0 && (
-                        <span className="text-[10px] text-accent-light font-semibold">
+                        <span className="text-[10px] text-accent font-semibold">
                           {groupSelected.length} selected
                         </span>
                       )}
@@ -187,7 +187,7 @@ export default function FilterPopover({
                               key={String(opt.value)}
                               className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs sm:text-sm cursor-pointer select-none transition-colors touch-manipulation ${
                                 isChecked
-                                  ? "bg-accent/15 text-accent-light font-medium"
+                                  ? "bg-accent/10 text-accent font-medium"
                                   : "text-ink hover:bg-surface-2"
                               }`}
                             >
@@ -196,7 +196,7 @@ export default function FilterPopover({
                                 className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
                                   isChecked
                                     ? "bg-accent border-accent text-white"
-                                    : "border-line bg-surface-3 hover:border-accent/50"
+                                    : "border-slate-300 bg-white hover:border-accent/50"
                                 }`}
                               >
                                 {isChecked && (
@@ -214,7 +214,7 @@ export default function FilterPopover({
                               {opt.avatarInitial && (
                                 <span
                                   className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] text-white font-semibold shrink-0 shadow-sm"
-                                  style={{ backgroundColor: opt.avatarColor || "#7C5CFF" }}
+                                  style={{ backgroundColor: opt.avatarColor || "#0C66E4" }}
                                 >
                                   {opt.avatarInitial}
                                 </span>
@@ -233,7 +233,7 @@ export default function FilterPopover({
 
                               {/* Optional Badge */}
                               {opt.badge && (
-                                <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-accent/20 text-accent-light font-semibold shrink-0 ml-1">
+                                <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-accent/15 text-accent font-semibold shrink-0 ml-1">
                                   {opt.badge}
                                 </span>
                               )}
@@ -257,7 +257,7 @@ export default function FilterPopover({
               <button
                 type="button"
                 onClick={handleClearAll}
-                className="text-xs font-semibold text-accent-light hover:text-accent hover:underline px-2 py-1 rounded transition-colors touch-manipulation cursor-pointer"
+                className="text-xs font-semibold text-accent hover:text-accent-dark hover:underline px-2 py-1 rounded transition-colors touch-manipulation cursor-pointer"
               >
                 Clear all
               </button>

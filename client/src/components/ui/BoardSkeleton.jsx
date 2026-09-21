@@ -40,43 +40,43 @@ export default function BoardSkeleton() {
   return (
     <div className="board-canvas min-h-[calc(100vh-56px-56px)] flex flex-col bg-base animate-in fade-in duration-200">
       {/* Board Header Skeleton mirroring BoardView.jsx */}
-      <div className="relative z-20 px-4 sm:px-6 py-3 sm:py-4 border-b border-white/10 bg-black/25 backdrop-blur-md flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="relative z-20 px-4 sm:px-6 py-3 sm:py-4 border-b border-line bg-surface/85 backdrop-blur-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="min-w-0 flex-1 space-y-1.5">
-          <Skeleton className="h-6 sm:h-7 w-48 sm:w-56 bg-white/10" />
-          <Skeleton className="h-3.5 w-64 sm:w-80 bg-white/10" />
+          <Skeleton className="h-6 sm:h-7 w-48 sm:w-56" />
+          <Skeleton className="h-3.5 w-64 sm:w-80" />
         </div>
 
         <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 flex-wrap sm:flex-nowrap">
           {/* Filter Popover Placeholder */}
-          <Skeleton className="h-8 w-20 rounded-lg bg-white/10" />
+          <Skeleton className="h-8 w-20 rounded-lg" />
 
           {/* Member Avatars Placeholder */}
           <div className="flex -space-x-1.5 sm:-space-x-2">
-            <Skeleton className="w-7 h-7 rounded-full border-2 border-surface/80 bg-white/10" />
-            <Skeleton className="w-7 h-7 rounded-full border-2 border-surface/80 bg-white/10" />
-            <Skeleton className="w-7 h-7 rounded-full border-2 border-surface/80 bg-white/10" />
+            <Skeleton className="w-7 h-7 rounded-full border-2 border-surface" />
+            <Skeleton className="w-7 h-7 rounded-full border-2 border-surface" />
+            <Skeleton className="w-7 h-7 rounded-full border-2 border-surface" />
           </div>
 
           {/* Manage Team Button Placeholder */}
-          <Skeleton className="h-8 w-28 rounded-lg bg-white/10" />
+          <Skeleton className="h-8 w-28 rounded-lg" />
         </div>
       </div>
 
       {/* Lists Row Canvas mirroring BoardView.jsx */}
-      <div className="flex-1 overflow-x-auto scrollbar-hide px-4 sm:px-6 py-4 sm:py-5 snap-x snap-mandatory sm:snap-none scroll-smooth">
+      <div className="flex-1 overflow-x-auto scrollbar-hide px-4 sm:px-6 py-4 sm:py-5">
         <div className="flex gap-4 h-full items-start pb-4">
           {SKELETON_COLUMNS.map((col, idx) => (
             <div
               key={idx}
-              className="w-[82vw] max-w-[300px] sm:w-72 shrink-0 snap-center sm:snap-align-none bg-black/30 backdrop-blur-md border border-white/15 rounded-xl flex flex-col max-h-full shadow-card"
+              className="w-[82vw] max-w-[300px] sm:w-72 shrink-0 bg-[#F1F2F4] border border-slate-200/80 rounded-xl flex flex-col max-h-full shadow-sm"
             >
               {/* List Header mirroring List.jsx */}
               <div className="flex items-center justify-between px-3.5 pt-3.5 pb-2">
                 <div className="flex items-center gap-1.5">
-                  <Skeleton className={`h-4 ${col.titleWidth} bg-white/15`} />
-                  <Skeleton className="h-4 w-5 rounded-full bg-white/10" />
+                  <Skeleton className={`h-4 ${col.titleWidth}`} />
+                  <Skeleton className="h-4 w-5 rounded-full" />
                 </div>
-                <Skeleton className="w-6 h-6 rounded-lg bg-white/10" />
+                <Skeleton className="w-6 h-6 rounded-lg" />
               </div>
 
               {/* Cards Container mirroring List.jsx */}
@@ -89,7 +89,7 @@ export default function BoardSkeleton() {
                     {/* Optional Label Badge */}
                     {card.hasLabel && (
                       <div className="flex gap-1 mb-1">
-                        <Skeleton className={`h-3.5 ${card.labelWidth} rounded bg-accent/20`} />
+                        <Skeleton className={`h-3.5 ${card.labelWidth} rounded bg-accent/15`} />
                       </div>
                     )}
 
@@ -117,14 +117,14 @@ export default function BoardSkeleton() {
 
               {/* Add Card Button Placeholder mirroring List.jsx */}
               <div className="px-2.5 pb-2.5 pt-1">
-                <Skeleton className="h-8 w-full rounded-lg bg-white/10" />
+                <Skeleton className="h-8 w-full rounded-lg" />
               </div>
             </div>
           ))}
 
           {/* Add Another List Column Placeholder mirroring BoardView.jsx */}
-          <div className="w-[82vw] max-w-[300px] sm:w-72 shrink-0 snap-center sm:snap-align-none">
-            <Skeleton className="h-11 w-full rounded-xl bg-white/5 border border-dashed border-white/20" />
+          <div className="w-[82vw] max-w-[300px] sm:w-72 shrink-0">
+            <Skeleton className="h-11 w-full rounded-xl bg-slate-200/50 border border-dashed border-slate-300" />
           </div>
         </div>
       </div>

@@ -48,3 +48,18 @@ Thumbs.db
 .parcel-cache/
 .next/
 .turbo/
+
+# Playwright & End-to-End Tests
+playwright.config.js
+playwright.config.ts
+tests/
+test-results/
+playwright-report/
+blob-report/
+playwright/
+.playwright/
+test.zip
+test1mb.bin
+
+tests
+.github

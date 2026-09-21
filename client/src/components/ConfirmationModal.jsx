@@ -52,7 +52,7 @@ export default function ConfirmationModal({
       aria-modal="true"
       aria-labelledby="confirmation-modal-title"
       aria-describedby="confirmation-modal-description"
-      className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-[70] p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[70] p-4 animate-in fade-in duration-200"
       onClick={!loading ? onClose : undefined}
     >
       <div
@@ -64,8 +64,8 @@ export default function ConfirmationModal({
           <div
             className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center ${
               isDanger
-                ? "bg-rose-500/15 text-rose-400 border border-rose-500/20"
-                : "bg-accent/15 text-accent-light border border-accent/20"
+                ? "bg-rose-50 text-rose-600 border border-rose-200"
+                : "bg-accent/10 text-accent border border-accent/20"
             }`}
           >
             {icon ? (
@@ -99,7 +99,7 @@ export default function ConfirmationModal({
               type="button"
               onClick={onClose}
               aria-label="Close dialog"
-              className="text-muted hover:text-ink hover:bg-surface-3 w-9 h-9 -mr-1.5 -mt-1.5 flex items-center justify-center rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 touch-manipulation"
+              className="text-muted hover:text-ink hover:bg-slate-100 w-8 h-8 -mr-1 -mt-1 flex items-center justify-center rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 touch-manipulation cursor-pointer"
             >
               <X size={16} />
             </button>
@@ -112,7 +112,7 @@ export default function ConfirmationModal({
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="px-4 py-2.5 text-xs sm:text-sm font-medium rounded-lg bg-surface-3 hover:bg-surface-2 text-ink/90 border border-line transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-accent/40 touch-manipulation"
+            className="px-4 py-2.5 text-xs sm:text-sm font-medium rounded-lg bg-surface hover:bg-surface-2 text-ink border border-line transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-accent/40 touch-manipulation shadow-sm cursor-pointer"
           >
             {cancelText}
           </button>
@@ -121,10 +121,10 @@ export default function ConfirmationModal({
             type="button"
             onClick={onConfirm}
             disabled={loading || confirmDisabled}
-            className={`px-4 py-2.5 text-xs sm:text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-60 focus:outline-none focus:ring-2 touch-manipulation ${
+            className={`px-4 py-2.5 text-xs sm:text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-60 focus:outline-none focus:ring-2 touch-manipulation cursor-pointer ${
               isDanger
-                ? "bg-rose-600 hover:bg-rose-500 text-white focus:ring-rose-500/40 shadow-lg shadow-rose-950/30"
-                : "bg-accent hover:bg-accent-dark text-white focus:ring-accent/40"
+                ? "bg-rose-600 hover:bg-rose-700 text-white focus:ring-rose-500/40 shadow-sm"
+                : "bg-accent hover:bg-accent-dark text-white focus:ring-accent/40 shadow-sm"
             }`}
           >
             {loading && <Loader2 size={16} className="animate-spin -ml-0.5 text-white" />}

@@ -1,0 +1,9 @@
+URC CONSTRUCTION - STRUCTURAL INSPECTION NOTES
+==============================================
+Date: 2026-09-21
+Inspector: Lead Civil Engineer
+Status: PASSED
+
+1. Soil compaction depth verified to 1.5m.
+2. Reinforcement steel grade compliant with ASTM A615.
+3. Concrete compressive strength tested at 35 MPa.

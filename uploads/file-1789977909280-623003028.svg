@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="360" viewBox="0 0 600 360">
+    <defs>
+      <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+        <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#2563EB" stroke-width="0.5" stroke-opacity="0.2"/>
+      </pattern>
+    </defs>
+    <rect width="600" height="360" fill="#1E3A8A"/>
+    <rect width="600" height="360" fill="url(#grid)"/>
+    <text x="30" y="45" fill="#93C5FD" font-family="monospace" font-size="16" font-weight="bold">URC ENGINEERING // FOUNDATION SECTION A-A</text>
+    <rect x="50" y="80" width="500" height="120" fill="#3B82F6" fill-opacity="0.3" stroke="#60A5FA" stroke-width="2"/>
+    <line x1="50" y1="200" x2="550" y2="200" stroke="#F59E0B" stroke-width="3" stroke-dasharray="6,4"/>
+    <text x="60" y="110" fill="#EFF6FF" font-family="sans-serif" font-size="13">Grade 60 Deformed Rebar Grid (200mm c/c)</text>
+    <text x="60" y="140" fill="#EFF6FF" font-family="sans-serif" font-size="13">High Performance Concrete 35 MPa</text>
+    <rect x="80" y="220" width="440" height="90" fill="#1D4ED8" fill-opacity="0.4" stroke="#93C5FD" stroke-width="1.5"/>
+    <text x="100" y="260" fill="#DBEAFE" font-family="sans-serif" font-size="12">Compacted Granular Sub-base (Depth: 1500mm)</text>
+    <circle cx="530" cy="40" r="14" fill="#10B981"/>
+    <text x="525" y="45" fill="#FFFFFF" font-family="sans-serif" font-size="14" font-weight="bold">✓</text>
+  </svg>

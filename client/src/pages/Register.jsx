@@ -53,7 +53,7 @@ export default function Register() {
 
         <form onSubmit={submit} className="bg-surface border border-line rounded-xl sm:rounded-2xl p-5 sm:p-6 space-y-4 shadow-card">
           {error && (
-            <p className="text-sm text-rose-300 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">
+            <p className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
               {error}
             </p>
           )}
@@ -64,7 +64,7 @@ export default function Register() {
               value={form.name}
               onChange={update("name")}
               placeholder="Your full name"
-              className="w-full rounded-lg bg-surface-3 border border-line px-3.5 py-2.5 sm:py-2 text-base sm:text-sm text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent"
+              className="w-full rounded-lg bg-surface border border-slate-300 px-3.5 py-2.5 sm:py-2 text-base sm:text-sm text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent shadow-sm"
             />
           </div>
           <div>
@@ -75,7 +75,7 @@ export default function Register() {
               value={form.email}
               onChange={update("email")}
               placeholder="you@company.com"
-              className="w-full rounded-lg bg-surface-3 border border-line px-3.5 py-2.5 sm:py-2 text-base sm:text-sm text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent"
+              className="w-full rounded-lg bg-surface border border-slate-300 px-3.5 py-2.5 sm:py-2 text-base sm:text-sm text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent shadow-sm"
             />
           </div>
           <div>
@@ -100,7 +100,7 @@ export default function Register() {
           </div>
           <button
             disabled={loading}
-            className="w-full bg-accent hover:bg-accent-dark active:bg-accent-dark text-white text-sm font-semibold rounded-lg py-3 transition-colors disabled:opacity-60 touch-manipulation shadow-sm flex items-center justify-center gap-2"
+            className="w-full bg-accent hover:bg-accent-dark active:bg-accent-dark text-white text-sm font-semibold rounded-lg py-3 transition-colors disabled:opacity-60 touch-manipulation shadow-sm flex items-center justify-center gap-2 cursor-pointer"
           >
             {loading && <Loader2 size={16} className="animate-spin -ml-0.5 text-white" />}
             <span>{loading ? "Creating account…" : "Create account"}</span>
@@ -109,7 +109,7 @@ export default function Register() {
 
         <p className="text-center text-xs sm:text-sm text-muted mt-4">
           Already have an account?{" "}
-          <Link to="/login" className="text-accent-light font-medium hover:underline p-1">
+          <Link to="/login" className="text-accent font-semibold hover:underline p-1">
             Sign in
           </Link>
         </p>

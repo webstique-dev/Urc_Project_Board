@@ -12,6 +12,18 @@ const cardSchema = new mongoose.Schema(
     dueDate: { type: Date },
     priority: { type: String, enum: ["low", "medium", "high"], default: "medium" },
     labels: [{ type: String }],
+    checklists: [
+      {
+        title: { type: String, default: "Checklist" },
+        items: [
+          {
+            text: { type: String, required: true },
+            done: { type: Boolean, default: false },
+          },
+        ],
+      },
+    ],
+    checklistTitle: { type: String, default: "Checklist" },
     checklist: [
       {
         text: { type: String, required: true },
@@ -20,9 +32,13 @@ const cardSchema = new mongoose.Schema(
     ],
     attachments: [
       {
-        type: { type: String, enum: ["link"], default: "link" },
+        type: { type: String, enum: ["link", "file"], default: "link" },
         url: { type: String, required: true },
         label: { type: String, default: "" },
+        originalName: { type: String, default: "" },
+        filename: { type: String, default: "" },
+        mimeType: { type: String, default: "" },
+        size: { type: Number, default: 0 },
         addedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
         createdAt: { type: Date, default: Date.now },
       },

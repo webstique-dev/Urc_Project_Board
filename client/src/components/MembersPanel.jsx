@@ -37,7 +37,7 @@ export default function MembersPanel({ board, onClose, onChanged }) {
     label: u.name,
     sublabel: u.email,
     badge: u.role === "admin" ? "PM" : "Employee",
-    avatarColor: u.avatarColor || "#7C5CFF",
+    avatarColor: u.avatarColor || "#0C66E4",
     avatarInitial: u.name?.[0]?.toUpperCase(),
   }));
 
@@ -114,7 +114,7 @@ export default function MembersPanel({ board, onClose, onChanged }) {
       role="dialog"
       aria-modal="true"
       aria-label="Team members"
-      className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 z-50 animate-in fade-in duration-200"
+      className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 z-50 animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
@@ -132,7 +132,7 @@ export default function MembersPanel({ board, onClose, onChanged }) {
             type="button"
             onClick={onClose}
             aria-label="Close panel"
-            className="w-10 h-10 -mr-2 shrink-0 flex items-center justify-center text-muted hover:text-ink hover:bg-surface-3 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 touch-manipulation"
+            className="w-10 h-10 -mr-2 shrink-0 flex items-center justify-center text-muted hover:text-ink hover:bg-surface-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 touch-manipulation"
           >
             <X size={18} />
           </button>
@@ -145,12 +145,12 @@ export default function MembersPanel({ board, onClose, onChanged }) {
             return (
               <div
                 key={m.user._id}
-                className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-surface-2/40 hover:bg-surface-2 transition-colors"
+                className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-slate-50 border border-slate-100 hover:bg-slate-100/70 transition-colors"
               >
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   <span
                     className="w-8 h-8 rounded-full flex items-center justify-center text-xs text-white font-semibold shrink-0 shadow-sm"
-                    style={{ backgroundColor: m.user.avatarColor || "#7C5CFF" }}
+                    style={{ backgroundColor: m.user.avatarColor || "#0C66E4" }}
                   >
                     {m.user.name?.[0]?.toUpperCase()}
                   </span>
@@ -159,7 +159,7 @@ export default function MembersPanel({ board, onClose, onChanged }) {
                       <p className="text-sm font-medium text-ink truncate">{m.user.name}</p>
                       {m.user.role === "admin" && (
                         <span
-                          className="text-[10px] uppercase tracking-wider px-1.5 py-0.2 rounded-full bg-accent/20 text-accent-light font-semibold shrink-0"
+                          className="text-[10px] uppercase tracking-wider px-1.5 py-0.2 rounded-full bg-accent/20 text-accent font-semibold shrink-0"
                           title="Workspace PM"
                         >
                           PM
@@ -176,13 +176,13 @@ export default function MembersPanel({ board, onClose, onChanged }) {
                     isThisMemberSoleManager ? (
                       <div className="flex flex-col items-end">
                         <span
-                          className="text-[10px] uppercase tracking-wider px-2 py-1 rounded-lg bg-accent/20 text-accent-light font-semibold flex items-center gap-1 cursor-default border border-accent/30"
+                          className="text-[10px] uppercase tracking-wider px-2 py-1 rounded-lg bg-accent/20 text-accent font-semibold flex items-center gap-1 cursor-default border border-accent/30"
                           title="Sole manager — assign another manager before demoting"
                         >
                           <Crown size={11} className="shrink-0" />
                           <span>Manager</span>
                         </span>
-                        <span className="text-[9px] text-muted/60 mt-0.5">Sole manager</span>
+                        <span className="text-[9px] text-muted/70 mt-0.5">Sole manager</span>
                       </div>
                     ) : (
                       <div className="w-28 sm:w-32">
@@ -193,7 +193,7 @@ export default function MembersPanel({ board, onClose, onChanged }) {
                             {
                               value: "manager",
                               label: "Manager",
-                              icon: <Crown size={12} className="text-accent-light shrink-0" />,
+                              icon: <Crown size={12} className="text-accent shrink-0" />,
                             },
                             {
                               value: "member",
@@ -208,12 +208,12 @@ export default function MembersPanel({ board, onClose, onChanged }) {
                       </div>
                     )
                   ) : m.role === "manager" ? (
-                    <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-accent/20 text-accent-light font-semibold shrink-0 flex items-center gap-1">
+                    <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-accent/20 text-accent font-semibold shrink-0 flex items-center gap-1">
                       <Crown size={11} className="shrink-0" />
                       <span>Manager</span>
                     </span>
                   ) : (
-                    <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/10 text-muted font-semibold shrink-0">
+                    <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-200/80 text-slate-700 font-semibold shrink-0">
                       Member
                     </span>
                   )}
@@ -235,7 +235,7 @@ export default function MembersPanel({ board, onClose, onChanged }) {
                         type="button"
                         onClick={() => setRemoveTarget(m)}
                         aria-label={`Remove ${m.user.name}`}
-                        className="text-xs font-medium text-muted hover:text-rose-400 hover:bg-rose-500/10 px-2 py-1 rounded-lg transition-colors shrink-0 touch-manipulation cursor-pointer"
+                        className="text-xs font-medium text-muted hover:text-rose-600 hover:bg-rose-50 px-2 py-1 rounded-lg transition-colors shrink-0 touch-manipulation cursor-pointer"
                       >
                         Remove
                       </button>
@@ -249,7 +249,7 @@ export default function MembersPanel({ board, onClose, onChanged }) {
 
         {nonMembers.length === 0 ? (
           <div className="pt-4 border-t border-line">
-            <div className="p-3.5 bg-surface-2/60 border border-line/60 rounded-xl text-center">
+            <div className="p-3.5 bg-surface-2 border border-line rounded-xl text-center">
               <p className="text-xs sm:text-sm text-muted font-medium">
                 Everyone in the workspace is already on this project
               </p>
@@ -273,7 +273,7 @@ export default function MembersPanel({ board, onClose, onChanged }) {
               className={`text-xs sm:text-sm font-semibold rounded-lg px-4 py-2.5 transition-all shrink-0 touch-manipulation flex items-center justify-center gap-1.5 shadow-sm ${
                 selected && !isAdding
                   ? "bg-accent hover:bg-accent-dark text-white cursor-pointer active:scale-[0.98]"
-                  : "bg-surface-3 text-muted/70 border border-line/60 cursor-not-allowed"
+                  : "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
               }`}
             >
               <Plus size={15} className="shrink-0" />

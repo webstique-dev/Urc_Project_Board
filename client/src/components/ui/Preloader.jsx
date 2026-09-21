@@ -3,7 +3,7 @@ import { Server, Loader2, Sparkles } from "lucide-react";
 
 /**
  * Branded two-layer Preloader component
- * Layer 1: App-boot / branded pulse on dark base (#0C0A14)
+ * Layer 1: App-boot / branded pulse on light base (#F8FAFC)
  * Layer 2: Automatic Cold-Start detector (after ~3s) to explain Render free-tier wake up delay
  */
 export default function Preloader({

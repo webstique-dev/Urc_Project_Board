@@ -46,7 +46,7 @@ export default function Login() {
 
         <form onSubmit={submit} className="bg-surface border border-line rounded-xl sm:rounded-2xl p-5 sm:p-6 space-y-4 shadow-card">
           {error && (
-            <p className="text-sm text-rose-300 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">
+            <p className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
               {error}
             </p>
           )}
@@ -61,7 +61,7 @@ export default function Login() {
               disabled={loading}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg bg-surface-3 border border-line px-3.5 py-2.5 sm:py-2 text-base sm:text-sm text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent disabled:opacity-50 transition-colors"
+              className="w-full rounded-lg bg-surface border border-slate-300 px-3.5 py-2.5 sm:py-2 text-base sm:text-sm text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent disabled:opacity-50 transition-colors shadow-sm"
               placeholder="you@company.com"
             />
           </div>
@@ -82,7 +82,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-accent hover:bg-accent-dark active:bg-accent-dark text-white text-sm font-semibold rounded-lg py-3 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 touch-manipulation shadow-sm"
+            className="w-full bg-accent hover:bg-accent-dark active:bg-accent-dark text-white text-sm font-semibold rounded-lg py-3 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 touch-manipulation shadow-sm cursor-pointer"
           >
             {loading ? (
               <>
@@ -96,12 +96,12 @@ export default function Login() {
         </form>
 
         {/* Quick Test Credentials */}
-        <div className="mt-5 bg-surface/60 border border-line rounded-xl p-3.5 sm:p-4">
+        <div className="mt-5 bg-surface border border-line rounded-xl p-3.5 sm:p-4 shadow-sm">
           <div className="flex items-center justify-between mb-2.5">
             <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">
               Quick Test Credentials
             </span>
-            <span className="text-[10px] text-accent-light bg-accent/15 px-2 py-0.5 rounded-full font-medium">
+            <span className="text-[10px] text-accent bg-accent/10 px-2 py-0.5 rounded-full font-medium">
               Click to fill
             </span>
           </div>
@@ -114,13 +114,13 @@ export default function Login() {
                 setError("");
                 toast.info("Filled PM credentials (admin@workspace.com)");
               }}
-              className="flex flex-col items-start p-2.5 rounded-lg bg-surface-3 hover:bg-surface-2 border border-line hover:border-accent/50 active:bg-surface-2 text-left transition-all group touch-manipulation"
+              className="flex flex-col items-start p-2.5 rounded-lg bg-surface-2 hover:bg-slate-200/60 border border-line hover:border-accent/40 active:bg-surface-2 text-left transition-all group touch-manipulation cursor-pointer"
             >
               <div className="flex items-center justify-between w-full mb-1">
-                <span className="text-xs font-medium text-ink group-hover:text-accent-light">
+                <span className="text-xs font-medium text-ink group-hover:text-accent">
                   Project Manager
                 </span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/20 text-accent-light font-mono font-semibold">
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/15 text-accent font-mono font-semibold">
                   PM
                 </span>
               </div>
@@ -137,13 +137,13 @@ export default function Login() {
                 setError("");
                 toast.info("Filled Member credentials (member@workspace.com)");
               }}
-              className="flex flex-col items-start p-2.5 rounded-lg bg-surface-3 hover:bg-surface-2 border border-line hover:border-accent/50 active:bg-surface-2 text-left transition-all group touch-manipulation"
+              className="flex flex-col items-start p-2.5 rounded-lg bg-surface-2 hover:bg-slate-200/60 border border-line hover:border-accent/40 active:bg-surface-2 text-left transition-all group touch-manipulation cursor-pointer"
             >
               <div className="flex items-center justify-between w-full mb-1">
-                <span className="text-xs font-medium text-ink group-hover:text-accent-light">
+                <span className="text-xs font-medium text-ink group-hover:text-accent">
                   Employee
                 </span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-muted font-mono font-semibold">
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 font-mono font-semibold">
                   MEMBER
                 </span>
               </div>
@@ -156,7 +156,7 @@ export default function Login() {
 
         <p className="text-center text-xs sm:text-sm text-muted mt-4">
           New here?{" "}
-          <Link to="/register" className="text-accent-light font-medium hover:underline p-1">
+          <Link to="/register" className="text-accent font-semibold hover:underline p-1">
             Create an account
           </Link>
         </p>

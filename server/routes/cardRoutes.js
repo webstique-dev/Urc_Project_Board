@@ -9,10 +9,12 @@ import {
   updateComment,
   deleteComment,
   addAttachment,
+  uploadFileAttachment,
   deleteAttachment,
   getMyCards,
 } from "../controllers/cardController.js";
 import { protect, boardMember } from "../middleware/auth.js";
+import { uploadAttachment } from "../middleware/upload.js";
 
 const router = express.Router();
 
@@ -40,6 +42,7 @@ router.delete("/:id/comments/:commentId", deleteComment);
 
 // Attachments routes
 router.post("/:id/attachments", addAttachment);
+router.post("/:id/attachments/upload", uploadAttachment.single("file"), uploadFileAttachment);
 router.delete("/:id/attachments/:attachmentId", deleteAttachment);
 
 export default router;

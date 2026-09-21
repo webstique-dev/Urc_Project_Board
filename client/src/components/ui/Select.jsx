@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { ChevronDown, Check } from "lucide-react";
 
 /**
- * Reusable dark-themed Select / Dropdown component
+ * Reusable light-themed Select / Dropdown component
  * Replaces native HTML <select> with styled, accessible dropdown popup.
  *
  * Option shape:
@@ -153,7 +153,7 @@ export default function Select({
         disabled={disabled}
         onClick={() => setIsOpen((prev) => !prev)}
         onKeyDown={handleKeyDown}
-        className={`w-full flex items-center justify-between gap-2 rounded-lg bg-surface-3 border border-line px-3 py-2 text-base sm:text-sm text-ink transition-all focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer touch-manipulation hover:border-accent/40 ${
+        className={`w-full flex items-center justify-between gap-2 rounded-lg bg-surface border border-line px-3 py-2 text-base sm:text-sm text-ink transition-all focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer touch-manipulation hover:border-accent/40 shadow-sm ${
           isOpen ? "border-accent/60 ring-2 ring-accent/30" : ""
         } ${buttonClassName}`}
       >
@@ -163,7 +163,7 @@ export default function Select({
               {selectedOption.avatarInitial && (
                 <span
                   className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] text-white font-semibold shrink-0 shadow-sm"
-                  style={{ backgroundColor: selectedOption.avatarColor || "#7C5CFF" }}
+                  style={{ backgroundColor: selectedOption.avatarColor || "#0C66E4" }}
                 >
                   {selectedOption.avatarInitial}
                 </span>
@@ -171,7 +171,7 @@ export default function Select({
               {selectedOption.icon && <span className="shrink-0">{selectedOption.icon}</span>}
               <span className="truncate text-ink font-medium">{selectedOption.label}</span>
               {selectedOption.badge && (
-                <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-accent/20 text-accent-light font-semibold shrink-0">
+                <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-accent/15 text-accent font-semibold shrink-0">
                   {selectedOption.badge}
                 </span>
               )}
@@ -185,7 +185,7 @@ export default function Select({
         <ChevronDown
           size={16}
           className={`text-muted shrink-0 transition-transform duration-200 ${
-            isOpen ? "rotate-180 text-accent-light" : ""
+            isOpen ? "rotate-180 text-accent" : ""
           }`}
         />
       </button>
@@ -218,7 +218,7 @@ export default function Select({
                     option.disabled
                       ? "opacity-40 cursor-not-allowed"
                       : isSelected
-                      ? "bg-accent/20 text-accent-light font-medium"
+                      ? "bg-accent/10 text-accent font-semibold"
                       : isHighlighted
                       ? "bg-surface-2 text-ink"
                       : "text-ink hover:bg-surface-2"
@@ -228,7 +228,7 @@ export default function Select({
                     {option.avatarInitial && (
                       <span
                         className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] text-white font-semibold shrink-0 shadow-sm"
-                        style={{ backgroundColor: option.avatarColor || "#7C5CFF" }}
+                        style={{ backgroundColor: option.avatarColor || "#0C66E4" }}
                       >
                         {option.avatarInitial}
                       </span>
@@ -244,12 +244,12 @@ export default function Select({
 
                   <div className="flex items-center gap-1.5 shrink-0 ml-2">
                     {option.badge && (
-                      <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-accent/20 text-accent-light font-semibold">
+                      <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-accent/15 text-accent font-semibold">
                         {option.badge}
                       </span>
                     )}
                     {isSelected && (
-                      <Check size={16} strokeWidth={2.5} className="text-accent-light shrink-0" />
+                      <Check size={16} strokeWidth={2.5} className="text-accent shrink-0" />
                     )}
                   </div>
                 </div>

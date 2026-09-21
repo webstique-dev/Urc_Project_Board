@@ -33,7 +33,7 @@ export default function DashboardSkeleton() {
             className="rounded-xl sm:rounded-2xl border border-line bg-surface overflow-hidden shadow-card flex flex-col"
           >
             {/* Top Gradient Banner Placeholder (Flat muted color) */}
-            <Skeleton className="h-20 sm:h-24 w-full rounded-none bg-white/[0.05]" />
+            <Skeleton className="h-20 sm:h-24 w-full rounded-none bg-surface-2" />
 
             {/* Card Content mirroring Dashboard.jsx */}
             <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between">

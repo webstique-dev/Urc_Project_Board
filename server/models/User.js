@@ -7,7 +7,7 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true, minlength: 6 },
     role: { type: String, enum: ["admin", "member"], default: "member" },
-    avatarColor: { type: String, default: "#4F46E5" },
+    avatarColor: { type: String, default: "#0C66E4" },
   },
   { timestamps: true }
 );

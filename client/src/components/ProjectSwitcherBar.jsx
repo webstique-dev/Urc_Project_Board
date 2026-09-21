@@ -21,7 +21,7 @@ export default function ProjectSwitcherBar() {
 
   return (
     <>
-      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-line bg-surface/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-line bg-surface/95 backdrop-blur-sm pb-[env(safe-area-inset-bottom)] shadow-sm">
         <div className="max-w-[1400px] mx-auto px-3 sm:px-4 h-12 flex items-center justify-between gap-2">
           {/* Scrollable Project Tabs */}
           <div
@@ -40,15 +40,15 @@ export default function ProjectSwitcherBar() {
                 <button
                   key={board._id}
                   onClick={() => navigate(`/boards/${board._id}`)}
-                  className={`flex items-center gap-1.5 shrink-0 text-xs font-medium px-3 py-2 sm:py-1.5 rounded-lg transition-colors touch-manipulation focus:outline-none focus:ring-2 focus:ring-accent/40 ${
+                  className={`flex items-center gap-1.5 shrink-0 text-xs font-medium px-3 py-2 sm:py-1.5 rounded-lg transition-colors touch-manipulation focus:outline-none focus:ring-2 focus:ring-accent/40 cursor-pointer ${
                     active
-                      ? "bg-accent/15 text-accent-light"
-                      : "text-muted hover:text-ink hover:bg-white/5 active:bg-white/10"
+                      ? "bg-accent/10 text-accent font-semibold"
+                      : "text-muted hover:text-ink hover:bg-slate-100 active:bg-slate-200"
                   }`}
                 >
                   <span
                     className="w-2 h-2 rounded-full shrink-0"
-                    style={{ backgroundColor: board.color || "#7C5CFF" }}
+                    style={{ backgroundColor: board.color || "#0C66E4" }}
                   />
                   <span className="max-w-[140px] sm:max-w-[200px] truncate">{board.title}</span>
                 </button>
@@ -62,7 +62,7 @@ export default function ProjectSwitcherBar() {
               <button
                 onClick={() => setShowNewProject(true)}
                 aria-label="Add new project"
-                className="flex items-center gap-1 shrink-0 text-xs font-medium px-2.5 py-1.5 rounded-lg text-accent-light bg-accent/10 hover:bg-accent/20 border border-dashed border-accent/40 transition-colors touch-manipulation focus:outline-none focus:ring-2 focus:ring-accent/40"
+                className="flex items-center gap-1 shrink-0 text-xs font-medium px-2.5 py-1.5 rounded-lg text-accent bg-accent/10 hover:bg-accent/15 border border-dashed border-accent/40 transition-colors touch-manipulation focus:outline-none focus:ring-2 focus:ring-accent/40 cursor-pointer"
               >
                 <Plus size={14} className="shrink-0" />
                 <span className="hidden xs:inline sm:inline">Add project</span>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
   X,
@@ -12,9 +12,15 @@ import {
   ListChecks,
   Link2,
   ExternalLink,
+  UploadCloud,
+  Download,
+  Eye,
+  Loader2,
+  FileText,
 } from "lucide-react";
 import api from "../api/axios.js";
 import ConfirmationModal from "./ConfirmationModal.jsx";
+import AttachmentPreviewModal, { formatFileSize, getFileTypeInfo } from "./AttachmentPreviewModal.jsx";
 import { useToast } from "../context/ToastContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import Select from "./ui/Select.jsx";
@@ -101,7 +107,7 @@ function renderActivityText(activity) {
       return (
         <span className="text-muted">
           <span className="font-semibold text-ink">{userName}</span> set priority to{" "}
-          <span className="capitalize font-medium text-accent-light">{activity.meta?.to || "medium"}</span>
+          <span className="capitalize font-medium text-accent">{activity.meta?.to || "medium"}</span>
         </span>
       );
     case "due_date_changed":
@@ -129,7 +135,7 @@ function renderActivityText(activity) {
       return (
         <span className="text-muted">
           <span className="font-semibold text-ink">{userName}</span> attached link{" "}
-          <span className="font-medium text-accent-light">"{activity.meta?.label || activity.meta?.url}"</span>
+          <span className="font-medium text-accent">"{activity.meta?.label || activity.meta?.url}"</span>
         </span>
       );
     case "comment_added":
@@ -156,18 +162,29 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
   const [isEditingDescription, setIsEditingDescription] = useState(false);
 
   // Popover state management
-  const [activePopover, setActivePopover] = useState(null); // 'add' | 'members' | 'labels' | 'attachment' | 'attachment_inline' | 'overflow' | null
+  const [activePopover, setActivePopover] = useState(null); // 'add' | 'members' | 'labels' | 'checklist' | 'attachment' | 'attachment_inline' | 'overflow' | null
 
-  // Attachment form state
+  // Attachment form state (Links & Uploads)
+  const [attachmentTab, setAttachmentTab] = useState("file"); // 'file' | 'link'
   const [attachmentUrl, setAttachmentUrl] = useState("");
   const [attachmentLabel, setAttachmentLabel] = useState("");
   const [isAddingAttachment, setIsAddingAttachment] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [fileLabel, setFileLabel] = useState("");
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const [previewAttachment, setPreviewAttachment] = useState(null);
+  const [showAllAttachments, setShowAllAttachments] = useState(false);
+  const fileInputRef = useRef(null);
 
   // Label form state
   const [customLabel, setCustomLabel] = useState("");
 
   // Checklist form state
-  const [newChecklistItem, setNewChecklistItem] = useState("");
+  const [newChecklistTitle, setNewChecklistTitle] = useState("");
+  const [editingChecklistKey, setEditingChecklistKey] = useState(null);
+  const [editingChecklistTitle, setEditingChecklistTitle] = useState("");
+  const [newItemInputs, setNewItemInputs] = useState({});
 
   // Comments state
   const [commentText, setCommentText] = useState("");
@@ -181,8 +198,9 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
   // Confirmation modal state
   const [confirmState, setConfirmState] = useState({
     isOpen: false,
-    type: null, // 'card' | 'comment' | 'attachment'
+    type: null, // 'card' | 'comment' | 'attachment' | 'checklist'
     id: null,
+    extraIndex: null,
     title: "",
     message: "",
     loading: false,
@@ -232,9 +250,30 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
 
   const save = async (patch) => {
     try {
-      const res = await api.patch(`/cards/${cardId}`, patch);
+      const sanitizedPatch = { ...patch };
+      if (Array.isArray(sanitizedPatch.checklists)) {
+        sanitizedPatch.checklists = sanitizedPatch.checklists.map((cl) => {
+          const isClIdValid = cl._id && /^[0-9a-fA-F]{24}$/.test(String(cl._id));
+          const cleanCl = {
+            title: cl.title || "Checklist",
+            items: (cl.items || []).map((item) => {
+              const isItemIdValid = item._id && /^[0-9a-fA-F]{24}$/.test(String(item._id));
+              const cleanItem = {
+                text: item.text,
+                done: Boolean(item.done),
+              };
+              if (isItemIdValid) cleanItem._id = item._id;
+              return cleanItem;
+            }),
+          };
+          if (isClIdValid) cleanCl._id = cl._id;
+          return cleanCl;
+        });
+      }
+      const res = await api.patch(`/cards/${cardId}`, sanitizedPatch);
       setCard(res.data);
       onChanged();
+      return res.data;
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to update card");
     }
@@ -272,27 +311,175 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
     save({ labels: current.filter((l) => l !== labelName) });
   };
 
-  const toggleChecklistItem = (index) => {
-    const next = [...(card.checklist || [])];
-    next[index] = { ...next[index], done: !next[index].done };
-    save({ checklist: next });
+  const getNormalizedChecklists = (cardData) => {
+    if (!cardData) return [];
+    if (Array.isArray(cardData.checklists) && cardData.checklists.length > 0) {
+      return cardData.checklists;
+    }
+    if (Array.isArray(cardData.checklist) && cardData.checklist.length > 0) {
+      return [
+        {
+          _id: "legacy",
+          title: cardData.checklistTitle || "Checklist",
+          items: cardData.checklist,
+        },
+      ];
+    }
+    if (cardData.checklistTitle && cardData.checklistTitle !== "Checklist" && !cardData.checklists) {
+      return [
+        {
+          _id: "legacy",
+          title: cardData.checklistTitle,
+          items: [],
+        },
+      ];
+    }
+    return [];
   };
 
-  const addChecklistItem = (e) => {
-    e.preventDefault();
-    if (!newChecklistItem.trim()) return;
-    save({
-      checklist: [...(card.checklist || []), { text: newChecklistItem.trim(), done: false }],
+  const handleCreateChecklist = async (e) => {
+    e?.preventDefault();
+    const title = newChecklistTitle.trim();
+    if (!title) return;
+    const currentChecklists = getNormalizedChecklists(card);
+    const updated = [
+      ...currentChecklists,
+      {
+        title,
+        items: [],
+      },
+    ];
+    await save({ checklists: updated });
+    setNewChecklistTitle("");
+    setActivePopover(null);
+    toast.success(`Checklist "${title}" created`, { title: "Success" });
+  };
+
+  const handleStartEditChecklistTitle = (clKey, currentTitle) => {
+    setEditingChecklistKey(clKey);
+    setEditingChecklistTitle(currentTitle);
+  };
+
+  const handleSaveChecklistTitle = async (checklistId, clIndex) => {
+    const title = editingChecklistTitle.trim();
+    const currentChecklists = getNormalizedChecklists(card);
+    const updated = currentChecklists.map((cl, idx) => {
+      const match = (cl._id && String(cl._id) === String(checklistId)) || idx === clIndex;
+      if (match) {
+        return { ...cl, title: title || cl.title };
+      }
+      return cl;
     });
-    setNewChecklistItem("");
+    await save({ checklists: updated });
+    setEditingChecklistKey(null);
+    setEditingChecklistTitle("");
+    toast.success("Checklist renamed");
   };
 
-  const deleteChecklistItem = (index) => {
-    const next = (card.checklist || []).filter((_, i) => i !== index);
-    save({ checklist: next });
+  const confirmDeleteChecklist = (checklistId, clIndex, title) => {
+    setConfirmState({
+      isOpen: true,
+      type: "checklist",
+      id: checklistId,
+      extraIndex: clIndex,
+      title: "Delete checklist?",
+      message: "Are you sure you want to delete this checklist and all its items?",
+      loading: false,
+    });
+  };
+
+  const toggleChecklistItem = (checklistId, clIndex, itemIndex) => {
+    const currentChecklists = getNormalizedChecklists(card);
+    const updated = currentChecklists.map((cl, idx) => {
+      const match = (cl._id && String(cl._id) === String(checklistId)) || idx === clIndex;
+      if (match) {
+        const nextItems = [...(cl.items || [])];
+        nextItems[itemIndex] = { ...nextItems[itemIndex], done: !nextItems[itemIndex].done };
+        return { ...cl, items: nextItems };
+      }
+      return cl;
+    });
+    save({ checklists: updated });
+  };
+
+  const addChecklistItem = (e, checklistId, clIndex) => {
+    e.preventDefault();
+    const key = checklistId || `idx-${clIndex}`;
+    const text = (newItemInputs[key] || "").trim();
+    if (!text) return;
+    const currentChecklists = getNormalizedChecklists(card);
+    const updated = currentChecklists.map((cl, idx) => {
+      const match = (cl._id && String(cl._id) === String(checklistId)) || idx === clIndex;
+      if (match) {
+        return {
+          ...cl,
+          items: [...(cl.items || []), { text, done: false }],
+        };
+      }
+      return cl;
+    });
+    save({ checklists: updated });
+    setNewItemInputs((prev) => ({ ...prev, [key]: "" }));
+  };
+
+  const deleteChecklistItem = (checklistId, clIndex, itemIndex) => {
+    const currentChecklists = getNormalizedChecklists(card);
+    const updated = currentChecklists.map((cl, idx) => {
+      const match = (cl._id && String(cl._id) === String(checklistId)) || idx === clIndex;
+      if (match) {
+        return {
+          ...cl,
+          items: (cl.items || []).filter((_, i) => i !== itemIndex),
+        };
+      }
+      return cl;
+    });
+    save({ checklists: updated });
   };
 
   // Attachments actions
+  const handleFileUpload = async (e) => {
+    e?.preventDefault();
+    if (!selectedFile || isUploading) return;
+
+    if (selectedFile.size > 25 * 1024 * 1024) {
+      toast.error("File exceeds maximum allowed size of 25MB");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+    if (fileLabel.trim()) {
+      formData.append("label", fileLabel.trim());
+    }
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const res = await api.post(`/cards/${cardId}/attachments/upload`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploadProgress(percent);
+          }
+        },
+      });
+      setCard(res.data);
+      onChanged();
+      setSelectedFile(null);
+      setFileLabel("");
+      setUploadProgress(0);
+      setActivePopover(null);
+      toast.success("File uploaded successfully", { title: "Success" });
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to upload file");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleAddAttachment = async (e) => {
     e.preventDefault();
     if (!attachmentUrl.trim()) return;
@@ -325,7 +512,7 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
       type: "attachment",
       id: attId,
       title: "Remove attachment?",
-      message: `Remove "${label || "this link"}" from card attachments?`,
+      message: `Remove "${label || "this attachment"}" from card attachments?`,
       loading: false,
     });
   };
@@ -402,64 +589,93 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
         toast.success("Comment deleted");
       }
 
-      setConfirmState({ isOpen: false, type: null, id: null });
+      if (confirmState.type === "checklist") {
+        const currentChecklists = getNormalizedChecklists(card);
+        const updated = currentChecklists.filter((cl, idx) => {
+          if (confirmState.id && cl._id && String(cl._id) !== "legacy") {
+            return String(cl._id) !== String(confirmState.id);
+          }
+          return idx !== confirmState.extraIndex;
+        });
+        const res = await api.patch(`/cards/${cardId}`, {
+          checklists: updated,
+          checklist: [],
+          checklistTitle: "",
+        });
+        setCard(res.data);
+        onChanged();
+        toast.success("Checklist deleted");
+      }
+
+      setConfirmState({ isOpen: false, type: null, id: null, extraIndex: null, title: "", message: "", loading: false });
     } catch (err) {
       toast.error(err.response?.data?.message || "Action failed");
       setConfirmState((prev) => ({ ...prev, loading: false }));
     }
   };
 
-  if (!card) return null;
+  // Build merged chronological feed (comments + activity log) with useMemo to eliminate typing lag
+  const feedItems = useMemo(() => {
+    if (!card) return [];
+    const items = [];
 
-  // Build merged chronological feed (comments + activity log)
-  const feedItems = [];
-
-  (card.comments || []).forEach((c) => {
-    feedItems.push({
-      id: `comment-${c._id}`,
-      type: "comment",
-      timestamp: new Date(c.createdAt).getTime(),
-      data: c,
+    (card.comments || []).forEach((c) => {
+      items.push({
+        id: `comment-${c._id}`,
+        type: "comment",
+        timestamp: new Date(c.createdAt).getTime(),
+        data: c,
+      });
     });
-  });
 
-  (card.activityLog || []).forEach((a, idx) => {
-    if (a.action === "comment_added") return;
-    feedItems.push({
-      id: `activity-${a._id || idx}`,
-      type: "activity",
-      timestamp: new Date(a.timestamp).getTime(),
-      data: a,
+    (card.activityLog || []).forEach((a, idx) => {
+      if (a.action === "comment_added") return;
+      items.push({
+        id: `activity-${a._id || idx}`,
+        type: "activity",
+        timestamp: new Date(a.timestamp).getTime(),
+        data: a,
+      });
     });
-  });
 
-  // Sort feed descending (newest first)
-  feedItems.sort((a, b) => b.timestamp - a.timestamp);
+    // Sort feed descending (newest first)
+    items.sort((a, b) => b.timestamp - a.timestamp);
+    return items;
+  }, [card?.comments, card?.activityLog]);
 
   // Activity items filter according to showAllActivity
-  let activityCount = 0;
-  const filteredFeedItems = feedItems.filter((item) => {
-    if (item.type === "comment") return true;
-    activityCount++;
-    if (showAllActivity) return true;
-    return activityCount <= 3; // Show latest 3 activity logs by default
+  const filteredFeedItems = useMemo(() => {
+    let activityCount = 0;
+    return feedItems.filter((item) => {
+      if (item.type === "comment") return true;
+      activityCount++;
+      if (showAllActivity) return true;
+      return activityCount <= 3; // Show latest 3 activity logs by default
+    });
+  }, [feedItems, showAllActivity]);
+
+  if (!card) return null;
+
+  const cardChecklists = getNormalizedChecklists(card);
+
+  const sortedAttachments = [...(card.attachments || [])].sort((a, b) => {
+    const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    if (timeA !== timeB) return timeB - timeA;
+    return 0;
   });
 
   const totalHiddenActivity = (card.activityLog || []).filter((a) => a.action !== "comment_added").length - 3;
 
-  const checklistCompleted = (card.checklist || []).filter((c) => c.done).length;
-  const checklistTotal = (card.checklist || []).length;
-  const checklistPercent = checklistTotal > 0 ? Math.round((checklistCompleted / checklistTotal) * 100) : 0;
-
   const fieldClass =
-    "w-full text-base sm:text-sm rounded-lg bg-surface-3 border border-line px-3 py-2 text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/40";
+    "w-full text-base sm:text-sm rounded-lg bg-surface border border-line px-3 py-2 text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-colors";
 
   const content = (
     <div
       role="dialog"
       aria-modal="true"
       aria-label="Card details"
-      className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 md:p-6 z-50 animate-in fade-in duration-200"
+      className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 md:p-6 z-50 animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
@@ -484,7 +700,7 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                 type="button"
                 onClick={() => setActivePopover(activePopover === "overflow" ? null : "overflow")}
                 aria-label="More options"
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-muted hover:text-ink hover:bg-surface-3 transition-colors touch-manipulation cursor-pointer"
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-muted hover:text-ink hover:bg-surface-2 transition-colors touch-manipulation cursor-pointer"
               >
                 <MoreHorizontal size={16} />
               </button>
@@ -503,7 +719,7 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                         message: `Are you sure you want to delete "${card.title}"? This action cannot be undone.`,
                       });
                     }}
-                    className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-medium text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer text-left"
+                    className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer text-left"
                   >
                     <Trash2 size={14} className="shrink-0" />
                     <span>Delete card</span>
@@ -517,7 +733,7 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
               type="button"
               onClick={onClose}
               aria-label="Close modal"
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-muted hover:text-ink hover:bg-surface-3 transition-colors touch-manipulation cursor-pointer"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-muted hover:text-ink hover:bg-surface-2 transition-colors touch-manipulation cursor-pointer"
             >
               <X size={18} />
             </button>
@@ -536,8 +752,8 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                 title={card.completed ? "Mark incomplete" : "Mark completed"}
                 aria-label={card.completed ? "Mark incomplete" : "Mark completed"}
                 className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all shrink-0 mt-1 cursor-pointer touch-manipulation ${card.completed
-                    ? "bg-emerald-500 border-emerald-500 text-white shadow-sm"
-                    : "border-muted/40 hover:border-accent hover:bg-accent/10 text-transparent"
+                  ? "bg-emerald-500 border-emerald-500 text-white shadow-sm"
+                  : "border-muted/40 hover:border-accent hover:bg-accent/10 text-transparent"
                   }`}
               >
                 <Check size={14} strokeWidth={3} className={card.completed ? "block" : "hidden"} />
@@ -562,9 +778,9 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                 <button
                   type="button"
                   onClick={() => setActivePopover(activePopover === "add" ? null : "add")}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-3 hover:bg-surface-2 border border-line text-ink font-medium transition-colors cursor-pointer touch-manipulation"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-2 hover:bg-surface-3 border border-line text-ink font-medium transition-colors cursor-pointer touch-manipulation"
                 >
-                  <Plus size={14} className="text-accent-light" />
+                  <Plus size={14} className="text-accent" />
                   <span>Add</span>
                 </button>
 
@@ -589,10 +805,8 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                     <button
                       type="button"
                       onClick={() => {
-                        setActivePopover(null);
-                        if (!card.checklist || card.checklist.length === 0) {
-                          save({ checklist: [{ text: "Initial task item", done: false }] });
-                        }
+                        setNewChecklistTitle("");
+                        setActivePopover("checklist");
                       }}
                       className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-ink hover:bg-surface-2 rounded-lg transition-colors text-left cursor-pointer"
                     >
@@ -615,79 +829,273 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
               <DatePicker
                 value={card.dueDate}
                 onChange={(val) => save({ dueDate: val })}
-                placeholder="Dates"
+                placeholder="Due Date"
               />
 
-              {/* Checklist Quick Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (!card.checklist || card.checklist.length === 0) {
-                    save({ checklist: [{ text: "New task", done: false }] });
-                  }
-                }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-3 hover:bg-surface-2 border border-line text-ink font-medium transition-colors cursor-pointer touch-manipulation"
-              >
-                <ListChecks size={14} className="text-muted" />
-                <span>Checklist</span>
-              </button>
+              {/* Checklist Quick Button & Creation Form Popover */}
+              <div className="relative" data-card-popover="true">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (activePopover === "checklist") {
+                      setActivePopover(null);
+                    } else {
+                      setNewChecklistTitle("");
+                      setActivePopover("checklist");
+                    }
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-2 hover:bg-surface-3 border border-line text-ink font-medium transition-colors cursor-pointer touch-manipulation"
+                >
+                  <ListChecks size={14} className="text-muted" />
+                  <span>Checklist</span>
+                </button>
+
+                {activePopover === "checklist" && (
+                  <div className="absolute left-0 top-full mt-1.5 w-72 sm:w-80 bg-surface border border-line rounded-xl shadow-pop p-3.5 z-[60] space-y-3 animate-in fade-in-50 zoom-in-95">
+                    <div className="flex items-center justify-between pb-1.5 border-b border-line">
+                      <span className="text-xs font-bold text-ink">Add Checklist</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActivePopover(null);
+                          setNewChecklistTitle("");
+                        }}
+                        className="w-6 h-6 rounded-md flex items-center justify-center text-muted hover:text-ink hover:bg-surface-2 transition-colors cursor-pointer"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleCreateChecklist} className="space-y-3">
+                      <div>
+                        <label className="block text-[11px] text-muted mb-1 font-medium">Title</label>
+                        <input
+                          autoFocus
+                          type="text"
+                          value={newChecklistTitle}
+                          onChange={(e) => setNewChecklistTitle(e.target.value)}
+                          placeholder="Checklist title…"
+                          className={`${fieldClass} py-1.5 text-xs sm:text-sm`}
+                        />
+                      </div>
+                      <div className="flex items-center justify-end gap-2 pt-1 border-t border-line/60">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActivePopover(null);
+                            setNewChecklistTitle("");
+                          }}
+                          className="px-3 py-1.5 text-xs text-muted hover:text-ink transition-colors cursor-pointer font-medium"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={!newChecklistTitle.trim()}
+                          className="px-3.5 py-1.5 text-xs bg-accent hover:bg-accent-dark text-white font-semibold rounded-lg transition-colors disabled:opacity-50 cursor-pointer shadow-sm"
+                        >
+                          Create
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+              </div>
 
               {/* Attachment Popover Button */}
               <div className="relative" data-card-popover="true">
                 <button
                   type="button"
                   onClick={() => setActivePopover(activePopover === "attachment" ? null : "attachment")}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-3 hover:bg-surface-2 border border-line text-ink font-medium transition-colors cursor-pointer touch-manipulation"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-2 hover:bg-surface-3 border border-line text-ink font-medium transition-colors cursor-pointer touch-manipulation"
                 >
                   <Link2 size={14} className="text-muted" />
                   <span>Attachment</span>
                 </button>
 
                 {activePopover === "attachment" && (
-                  <form
-                    onSubmit={handleAddAttachment}
-                    className="absolute left-0 top-full mt-1.5 w-72 sm:w-80 max-w-[calc(100vw-32px)] bg-surface border border-line rounded-xl shadow-pop p-3.5 z-[60] space-y-3 animate-in fade-in-50 zoom-in-95"
-                  >
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted">Attach a link</p>
-                    <div>
-                      <label className="block text-[11px] text-muted mb-1">Paste web link</label>
-                      <input
-                        autoFocus
-                        required
-                        type="text"
-                        value={attachmentUrl}
-                        onChange={(e) => setAttachmentUrl(e.target.value)}
-                        placeholder="https://example.com/spec"
-                        className={fieldClass + " py-1.5 text-xs"}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] text-muted mb-1">Link title (optional)</label>
-                      <input
-                        type="text"
-                        value={attachmentLabel}
-                        onChange={(e) => setAttachmentLabel(e.target.value)}
-                        placeholder="e.g. Design Specs"
-                        className={fieldClass + " py-1.5 text-xs"}
-                      />
-                    </div>
-                    <div className="flex items-center justify-end gap-2 pt-1 border-t border-line/60">
+                  <div className="absolute right-0 top-full mt-1.5 w-80 sm:w-[350px] max-w-[calc(100vw-32px)] bg-surface border border-line rounded-xl shadow-pop p-3.5 z-[60] space-y-3 animate-in fade-in-50 zoom-in-95">
+                    {/* Header with Title and Tabs */}
+                    <div className="flex items-center justify-between pb-1.5 border-b border-line">
+                      <div className="flex items-center gap-1 bg-surface-2 p-0.5 rounded-lg border border-line">
+                        <button
+                          type="button"
+                          onClick={() => setAttachmentTab("file")}
+                          className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+                            attachmentTab === "file"
+                              ? "bg-white text-ink shadow-sm"
+                              : "text-muted hover:text-ink"
+                          }`}
+                        >
+                          Upload File
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAttachmentTab("link")}
+                          className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+                            attachmentTab === "link"
+                              ? "bg-white text-ink shadow-sm"
+                              : "text-muted hover:text-ink"
+                          }`}
+                        >
+                          Attach Link
+                        </button>
+                      </div>
+
                       <button
                         type="button"
                         onClick={() => setActivePopover(null)}
-                        className="px-2.5 py-1 text-xs text-muted hover:text-ink transition-colors cursor-pointer"
+                        className="w-6 h-6 rounded-md flex items-center justify-center text-muted hover:text-ink hover:bg-surface-2 transition-colors cursor-pointer"
                       >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={isAddingAttachment || !attachmentUrl.trim()}
-                        className="px-3 py-1 text-xs bg-accent hover:bg-accent-dark text-white font-semibold rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
-                      >
-                        {isAddingAttachment ? "Attaching…" : "Attach"}
+                        <X size={14} />
                       </button>
                     </div>
-                  </form>
+
+                    {/* Tab 1: Upload File */}
+                    {attachmentTab === "file" ? (
+                      <form onSubmit={handleFileUpload} className="space-y-2.5">
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          className="sr-only"
+                          accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md,.json,.zip,.rar,.7z,.tar,.gz,.ppt,.pptx,.xml,.log"
+                          onChange={(e) => {
+                            if (e.target.files?.[0]) {
+                              setSelectedFile(e.target.files[0]);
+                              setFileLabel(e.target.files[0].name.replace(/\.[^/.]+$/, ""));
+                            }
+                          }}
+                        />
+                        {!selectedFile ? (
+                          <label
+                            onClick={() => fileInputRef.current?.click()}
+                            className="border-2 border-dashed border-line hover:border-accent/60 rounded-xl p-4 flex flex-col items-center justify-center gap-1 cursor-pointer bg-surface-2/30 hover:bg-surface-2/70 transition-all text-center"
+                          >
+                            <UploadCloud size={24} className="text-accent mb-0.5" />
+                            <p className="text-xs font-semibold text-ink">
+                              Choose a file <span className="font-normal text-muted">or drag & drop</span>
+                            </p>
+                            <p className="text-[10.5px] text-muted leading-tight">
+                              Images, PDFs, Word, Excel, CSV, ZIP, Text (max 25MB)
+                            </p>
+                          </label>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between p-2.5 rounded-lg bg-surface-2 border border-line">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <FileText size={18} className="text-accent shrink-0" />
+                                <div className="min-w-0">
+                                  <p className="text-xs font-semibold text-ink truncate">
+                                    {selectedFile.name}
+                                  </p>
+                                  <p className="text-[11px] text-muted">
+                                    {formatFileSize(selectedFile.size)}
+                                  </p>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedFile(null)}
+                                className="text-muted hover:text-rose-600 p-1 transition-colors cursor-pointer"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] text-muted mb-1 font-medium">
+                                Display title (optional)
+                              </label>
+                              <input
+                                type="text"
+                                value={fileLabel}
+                                onChange={(e) => setFileLabel(e.target.value)}
+                                placeholder="e.g. Q4 Financial Report"
+                                className={fieldClass + " py-1.5 text-xs"}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Progress Bar when Uploading */}
+                        {isUploading && (
+                          <div className="space-y-1 pt-1">
+                            <div className="flex justify-between text-[11px] text-muted">
+                              <span>Uploading file…</span>
+                              <span>{uploadProgress}%</span>
+                            </div>
+                            <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-accent transition-all duration-200 rounded-full"
+                                style={{ width: `${uploadProgress}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-end gap-2 pt-1.5 border-t border-line/60">
+                          <button
+                            type="button"
+                            onClick={() => setActivePopover(null)}
+                            className="px-2.5 py-1 text-xs text-muted hover:text-ink transition-colors cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={!selectedFile || isUploading}
+                            className="px-3.5 py-1 text-xs bg-accent hover:bg-accent-dark text-white font-semibold rounded-lg transition-colors disabled:opacity-50 cursor-pointer flex items-center gap-1.5 shadow-sm"
+                          >
+                            {isUploading && <Loader2 size={13} className="animate-spin" />}
+                            <span>{isUploading ? "Uploading…" : "Upload File"}</span>
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      /* Tab 2: Attach Link */
+                      <form onSubmit={handleAddAttachment} className="space-y-2.5">
+                        <div>
+                          <label className="block text-[11px] text-muted mb-1 font-medium">Paste web link</label>
+                          <input
+                            autoFocus
+                            required
+                            type="text"
+                            value={attachmentUrl}
+                            onChange={(e) => setAttachmentUrl(e.target.value)}
+                            placeholder="https://example.com/spec"
+                            className={fieldClass + " py-1.5 text-xs"}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] text-muted mb-1 font-medium">Link title (optional)</label>
+                          <input
+                            type="text"
+                            value={attachmentLabel}
+                            onChange={(e) => setAttachmentLabel(e.target.value)}
+                            placeholder="e.g. Design Specs"
+                            className={fieldClass + " py-1.5 text-xs"}
+                          />
+                        </div>
+                        <div className="flex items-center justify-end gap-2 pt-1.5 border-t border-line/60">
+                          <button
+                            type="button"
+                            onClick={() => setActivePopover(null)}
+                            className="px-2.5 py-1 text-xs text-muted hover:text-ink transition-colors cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={isAddingAttachment || !attachmentUrl.trim()}
+                            className="px-3.5 py-1 text-xs bg-accent hover:bg-accent-dark text-white font-semibold rounded-lg transition-colors disabled:opacity-50 cursor-pointer flex items-center gap-1.5 shadow-sm"
+                          >
+                            {isAddingAttachment && <Loader2 size={13} className="animate-spin" />}
+                            <span>{isAddingAttachment ? "Attaching…" : "Attach Link"}</span>
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -706,7 +1114,7 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                       key={u._id}
                       title={u.name}
                       className="w-7 h-7 rounded-full flex items-center justify-center text-xs text-white font-semibold shadow-sm ring-2 ring-surface shrink-0"
-                      style={{ backgroundColor: u.avatarColor || "#7C5CFF" }}
+                      style={{ backgroundColor: u.avatarColor || "#0C66E4" }}
                     >
                       {u.name?.[0]?.toUpperCase()}
                     </span>
@@ -717,7 +1125,7 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                       type="button"
                       onClick={() => setActivePopover(activePopover === "members" ? null : "members")}
                       aria-label="Add member"
-                      className="w-7 h-7 rounded-full bg-surface-3 hover:bg-surface-2 border border-line hover:border-accent/50 text-muted hover:text-ink text-xs font-bold flex items-center justify-center transition-colors cursor-pointer touch-manipulation shrink-0"
+                      className="w-7 h-7 rounded-full bg-surface-2 hover:bg-surface-3 border border-line hover:border-accent/50 text-muted hover:text-ink text-xs font-bold flex items-center justify-center transition-colors cursor-pointer touch-manipulation shrink-0"
                       title="Add member"
                     >
                       <Plus size={13} />
@@ -739,19 +1147,19 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                                   key={m.user._id}
                                   type="button"
                                   onClick={() => toggleAssignee(m.user._id)}
-                                  className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${isAssigned ? "bg-accent/20 text-accent-light font-medium" : "text-ink hover:bg-surface-2"
+                                  className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${isAssigned ? "bg-accent/15 text-accent font-medium" : "text-ink hover:bg-surface-2"
                                     }`}
                                 >
                                   <div className="flex items-center gap-2 truncate">
                                     <span
                                       className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] text-white font-semibold shrink-0 shadow-sm"
-                                      style={{ backgroundColor: m.user.avatarColor || "#7C5CFF" }}
+                                      style={{ backgroundColor: m.user.avatarColor || "#0C66E4" }}
                                     >
                                       {m.user.name?.[0]?.toUpperCase()}
                                     </span>
                                     <span className="truncate">{m.user.name}</span>
                                   </div>
-                                  {isAssigned && <Check size={13} className="text-accent-light font-bold" />}
+                                  {isAssigned && <Check size={13} className="text-accent font-bold" />}
                                 </button>
                               );
                             })
@@ -777,14 +1185,14 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                   {(card.labels || []).map((lbl) => (
                     <span
                       key={lbl}
-                      className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-accent/15 border border-accent/30 text-accent-light font-medium"
+                      className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-accent/15 border border-accent/30 text-accent font-medium"
                     >
                       <span>{lbl}</span>
                       <button
                         type="button"
                         onClick={() => removeLabel(lbl)}
                         aria-label={`Remove label ${lbl}`}
-                        className="hover:text-rose-400 cursor-pointer ml-0.5"
+                        className="hover:text-rose-600 cursor-pointer ml-0.5"
                       >
                         <X size={11} />
                       </button>
@@ -796,7 +1204,7 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                       type="button"
                       onClick={() => setActivePopover(activePopover === "labels" ? null : "labels")}
                       aria-label="Add label"
-                      className="h-7 px-2 rounded-md bg-surface-3 hover:bg-surface-2 border border-line hover:border-accent/50 text-muted hover:text-ink text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer touch-manipulation shrink-0"
+                      className="h-7 px-2 rounded-md bg-surface-2 hover:bg-surface-3 border border-line hover:border-accent/50 text-muted hover:text-ink text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer touch-manipulation shrink-0"
                       title="Add label"
                     >
                       <Plus size={13} />
@@ -833,8 +1241,8 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                                   type="button"
                                   onClick={() => (active ? removeLabel(p) : addLabel(p))}
                                   className={`text-[11px] px-2 py-0.5 rounded transition-colors cursor-pointer flex items-center gap-1 ${active
-                                      ? "bg-accent text-white font-medium"
-                                      : "bg-surface-3 hover:bg-surface-2 text-ink border border-line"
+                                    ? "bg-accent text-white font-medium"
+                                    : "bg-surface-2 hover:bg-surface-3 text-ink border border-line"
                                     }`}
                                 >
                                   <span>{p}</span>
@@ -879,7 +1287,7 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                   <button
                     type="button"
                     onClick={() => setIsEditingDescription(true)}
-                    className="text-xs font-semibold text-accent-light hover:text-accent hover:underline cursor-pointer flex items-center gap-1"
+                    className="text-xs font-semibold text-accent hover:text-accent-dark hover:underline cursor-pointer flex items-center gap-1"
                   >
                     <Pencil size={12} />
                     <span>Edit</span>
@@ -923,7 +1331,7 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
               ) : (
                 <div
                   onClick={() => setIsEditingDescription(true)}
-                  className={`p-3 rounded-xl border border-line/40 hover:border-line hover:bg-surface-2/40 cursor-pointer transition-colors text-sm leading-relaxed ${description ? "text-ink whitespace-pre-wrap" : "text-muted/60 italic bg-surface-2/20"
+                  className={`p-3 rounded-xl border border-line hover:border-accent/40 bg-surface-2/40 hover:bg-surface-2 cursor-pointer transition-colors text-sm leading-relaxed ${description ? "text-ink whitespace-pre-wrap" : "text-muted/60 italic bg-surface-2/20"
                     }`}
                 >
                   {description || "Add a more detailed description…"}
@@ -931,247 +1339,532 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
               )}
             </div>
 
-            {/* Attachments Section (Links) */}
-            <div className="pt-5 border-t border-line/60 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted flex items-center gap-1.5">
-                  <span>Attachments</span>
-                  <span className="text-[11px] text-muted/60 font-normal">
-                    ({(card.attachments || []).length})
-                  </span>
-                </h4>
-                <div className="relative" data-card-popover="true">
-                  <button
-                    type="button"
-                    onClick={() => setActivePopover(activePopover === "attachment_inline" ? null : "attachment_inline")}
-                    className="text-xs font-semibold text-accent-light hover:text-accent hover:underline cursor-pointer flex items-center gap-1"
-                  >
-                    <Plus size={13} />
-                    <span>Add link</span>
-                  </button>
-
-                  {activePopover === "attachment_inline" && (
-                    <form
-                      onSubmit={handleAddAttachment}
-                      className="absolute right-0 top-full mt-1.5 w-72 sm:w-80 max-w-[calc(100vw-32px)] bg-surface border border-line rounded-xl shadow-pop p-3.5 z-[60] space-y-3 animate-in fade-in-50 zoom-in-95"
+            {/* Attachments Section - Supports Uploaded Files & Links */}
+            {((card.attachments || []).length > 0 || activePopover === "attachment_inline") && (
+              <div className="pt-5 border-t border-line/60 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted flex items-center gap-1.5">
+                    <span>Attachments</span>
+                    <span className="text-[11px] text-muted/60 font-normal">
+                      ({(card.attachments || []).length})
+                    </span>
+                  </h4>
+                  <div className="relative" data-card-popover="true">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActivePopover(activePopover === "attachment_inline" ? null : "attachment_inline");
+                        if (activePopover !== "attachment_inline") {
+                          setSelectedFile(null);
+                          setFileLabel("");
+                          setAttachmentUrl("");
+                          setAttachmentLabel("");
+                        }
+                      }}
+                      className="text-xs font-semibold text-accent hover:text-accent-dark hover:underline cursor-pointer flex items-center gap-1"
                     >
-                      <p className="text-xs font-semibold uppercase tracking-wider text-muted">Attach a link</p>
-                      <div>
-                        <label className="block text-[11px] text-muted mb-1">Paste web link</label>
-                        <input
-                          autoFocus
-                          required
-                          type="text"
-                          value={attachmentUrl}
-                          onChange={(e) => setAttachmentUrl(e.target.value)}
-                          placeholder="https://example.com/spec"
-                          className={fieldClass + " py-1.5 text-xs"}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] text-muted mb-1">Link title (optional)</label>
-                        <input
-                          type="text"
-                          value={attachmentLabel}
-                          onChange={(e) => setAttachmentLabel(e.target.value)}
-                          placeholder="e.g. Design Specs"
-                          className={fieldClass + " py-1.5 text-xs"}
-                        />
-                      </div>
-                      <div className="flex items-center justify-end gap-2 pt-1 border-t border-line/60">
-                        <button
-                          type="button"
-                          onClick={() => setActivePopover(null)}
-                          className="px-2.5 py-1 text-xs text-muted hover:text-ink transition-colors cursor-pointer"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={isAddingAttachment || !attachmentUrl.trim()}
-                          className="px-3 py-1 text-xs bg-accent hover:bg-accent-dark text-white font-semibold rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
-                        >
-                          {isAddingAttachment ? "Attaching…" : "Attach"}
-                        </button>
-                      </div>
-                    </form>
-                  )}
-                </div>
-              </div>
+                      <Plus size={13} />
+                      <span>Add</span>
+                    </button>
 
-              {(card.attachments || []).length === 0 ? (
-                <div className="p-3.5 bg-surface-2/30 border border-dashed border-line/60 rounded-xl text-center">
-                  <p className="text-xs text-muted/70">No attachments yet. Paste any link to reference specs or PRs.</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {(card.attachments || []).map((att) => {
-                    const domain = getDomain(att.url);
-                    return (
-                      <div
-                        key={att._id}
-                        className="group flex items-center justify-between gap-3 p-2.5 rounded-xl bg-surface-2/50 border border-line/60 hover:border-accent/40 transition-colors"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                          <div className="w-8 h-8 rounded-lg bg-surface-3 border border-line flex items-center justify-center shrink-0 text-accent-light">
-                            <Link2 size={15} />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <a
-                              href={att.url}
-                              target="_blank"
-                              rel="noreferrer noopener"
-                              className="text-sm font-medium text-ink hover:text-accent-light transition-colors truncate block"
+                    {activePopover === "attachment_inline" && (
+                      <div className="absolute right-0 top-full mt-1.5 w-80 sm:w-96 max-w-[calc(100vw-32px)] bg-surface border border-line rounded-xl shadow-pop p-3.5 z-[60] space-y-3 animate-in fade-in-50 zoom-in-95">
+                        {/* Header with Title and Tabs */}
+                        <div className="flex items-center justify-between pb-1.5 border-b border-line">
+                          <div className="flex items-center gap-1 bg-surface-2 p-0.5 rounded-lg border border-line">
+                            <button
+                              type="button"
+                              onClick={() => setAttachmentTab("file")}
+                              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+                                attachmentTab === "file"
+                                  ? "bg-white text-ink shadow-sm"
+                                  : "text-muted hover:text-ink"
+                              }`}
                             >
-                              {att.label || domain}
-                            </a>
-                            <p className="text-[11px] text-muted truncate">{domain} • Added {formatRelativeTime(att.createdAt)}</p>
+                              Upload File
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setAttachmentTab("link")}
+                              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+                                attachmentTab === "link"
+                                  ? "bg-white text-ink shadow-sm"
+                                  : "text-muted hover:text-ink"
+                              }`}
+                            >
+                              Attach Link
+                            </button>
                           </div>
-                        </div>
 
-                        <div className="flex items-center gap-1 shrink-0">
-                          <a
-                            href={att.url}
-                            target="_blank"
-                            rel="noreferrer noopener"
-                            className="p-1.5 text-muted hover:text-ink hover:bg-surface-3 rounded-lg transition-colors text-xs"
-                            title="Open link"
-                            aria-label="Open link"
-                          >
-                            <ExternalLink size={13} />
-                          </a>
                           <button
                             type="button"
-                            onClick={() => confirmDeleteAttachment(att._id, att.label)}
-                            className="p-1.5 text-muted hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors text-xs cursor-pointer"
-                            title="Remove attachment"
-                            aria-label="Remove attachment"
+                            onClick={() => setActivePopover(null)}
+                            className="w-6 h-6 rounded-md flex items-center justify-center text-muted hover:text-ink hover:bg-surface-2 transition-colors cursor-pointer"
                           >
-                            <Trash2 size={13} />
+                            <X size={14} />
                           </button>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
 
-            {/* Checklist Section - Visually Polished */}
-            {card.checklist && card.checklist.length > 0 && (
-              <div className="pt-5 border-t border-line/60 space-y-3.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-muted">Checklist</span>
-                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-accent/15 border border-accent/30 text-accent-light">
-                      {checklistCompleted}/{checklistTotal} ({checklistPercent}%)
-                    </span>
+                        {/* Tab 1: Upload File */}
+                        {attachmentTab === "file" ? (
+                          <form onSubmit={handleFileUpload} className="space-y-2.5">
+                            <input
+                              ref={fileInputRef}
+                              type="file"
+                              className="sr-only"
+                              accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md,.json,.zip,.rar,.7z,.tar,.gz,.ppt,.pptx,.xml,.log"
+                              onChange={(e) => {
+                                if (e.target.files?.[0]) {
+                                  setSelectedFile(e.target.files[0]);
+                                  setFileLabel(e.target.files[0].name.replace(/\.[^/.]+$/, ""));
+                                }
+                              }}
+                            />
+                            {!selectedFile ? (
+                              <label
+                                onClick={() => fileInputRef.current?.click()}
+                                className="border-2 border-dashed border-line hover:border-accent/60 rounded-xl p-4 flex flex-col items-center justify-center gap-1 cursor-pointer bg-surface-2/30 hover:bg-surface-2/70 transition-all text-center"
+                              >
+                                <UploadCloud size={24} className="text-accent mb-0.5" />
+                                <p className="text-xs font-semibold text-ink">
+                                  Choose a file <span className="font-normal text-muted">or drag & drop</span>
+                                </p>
+                                <p className="text-[10.5px] text-muted leading-tight">
+                                  Images, PDFs, Word, Excel, CSV, ZIP, Text (max 25MB)
+                                </p>
+                              </label>
+                            ) : (
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between p-2.5 rounded-lg bg-surface-2 border border-line">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <FileText size={18} className="text-accent shrink-0" />
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-semibold text-ink truncate">
+                                        {selectedFile.name}
+                                      </p>
+                                      <p className="text-[11px] text-muted">
+                                        {formatFileSize(selectedFile.size)}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedFile(null)}
+                                    className="text-muted hover:text-rose-600 p-1 transition-colors cursor-pointer"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                </div>
+
+                                <div>
+                                  <label className="block text-[11px] text-muted mb-1 font-medium">
+                                    Display title (optional)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={fileLabel}
+                                    onChange={(e) => setFileLabel(e.target.value)}
+                                    placeholder="e.g. Q4 Financial Report"
+                                    className={fieldClass + " py-1.5 text-xs"}
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Progress Bar when Uploading */}
+                            {isUploading && (
+                              <div className="space-y-1 pt-1">
+                                <div className="flex justify-between text-[11px] text-muted">
+                                  <span>Uploading file…</span>
+                                  <span>{uploadProgress}%</span>
+                                </div>
+                                <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-accent transition-all duration-200 rounded-full"
+                                    style={{ width: `${uploadProgress}%` }}
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="flex items-center justify-end gap-2 pt-1.5 border-t border-line/60">
+                              <button
+                                type="button"
+                                onClick={() => setActivePopover(null)}
+                                className="px-2.5 py-1 text-xs text-muted hover:text-ink transition-colors cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="submit"
+                                disabled={!selectedFile || isUploading}
+                                className="px-3.5 py-1 text-xs bg-accent hover:bg-accent-dark text-white font-semibold rounded-lg transition-colors disabled:opacity-50 cursor-pointer flex items-center gap-1.5 shadow-sm"
+                              >
+                                {isUploading && <Loader2 size={13} className="animate-spin" />}
+                                <span>{isUploading ? "Uploading…" : "Upload File"}</span>
+                              </button>
+                            </div>
+                          </form>
+                        ) : (
+                          /* Tab 2: Attach Link */
+                          <form onSubmit={handleAddAttachment} className="space-y-2.5">
+                            <div>
+                              <label className="block text-[11px] text-muted mb-1 font-medium">Paste web link</label>
+                              <input
+                                autoFocus
+                                required
+                                type="text"
+                                value={attachmentUrl}
+                                onChange={(e) => setAttachmentUrl(e.target.value)}
+                                placeholder="https://example.com/spec"
+                                className={fieldClass + " py-1.5 text-xs"}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] text-muted mb-1 font-medium">Link title (optional)</label>
+                              <input
+                                type="text"
+                                value={attachmentLabel}
+                                onChange={(e) => setAttachmentLabel(e.target.value)}
+                                placeholder="e.g. Design Specs"
+                                className={fieldClass + " py-1.5 text-xs"}
+                              />
+                            </div>
+                            <div className="flex items-center justify-end gap-2 pt-1.5 border-t border-line/60">
+                              <button
+                                type="button"
+                                onClick={() => setActivePopover(null)}
+                                className="px-2.5 py-1 text-xs text-muted hover:text-ink transition-colors cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="submit"
+                                disabled={isAddingAttachment || !attachmentUrl.trim()}
+                                className="px-3.5 py-1 text-xs bg-accent hover:bg-accent-dark text-white font-semibold rounded-lg transition-colors disabled:opacity-50 cursor-pointer flex items-center gap-1.5 shadow-sm"
+                              >
+                                {isAddingAttachment && <Loader2 size={13} className="animate-spin" />}
+                                <span>{isAddingAttachment ? "Attaching…" : "Attach Link"}</span>
+                              </button>
+                            </div>
+                          </form>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Visibly filled progress bar */}
-                <div className="w-full h-2 bg-surface-3 border border-line/40 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-accent to-accent-light transition-all duration-300 rounded-full shadow-sm"
-                    style={{ width: `${checklistPercent}%` }}
-                  />
-                </div>
+                {sortedAttachments.length > 0 && (
+                  <div className="space-y-2">
+                    {(showAllAttachments
+                      ? sortedAttachments
+                      : sortedAttachments.slice(0, 3)
+                    ).map((att) => {
+                      const fileInfo = getFileTypeInfo(att);
+                      const displayName = att.label || att.originalName || att.url;
+                      const isServerFile = att.url?.startsWith("/uploads");
+                      const apiBase = import.meta.env.VITE_API_URL
+                        ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, "")
+                        : "http://localhost:5000";
+                      const fullUrl = isServerFile ? `${apiBase}${att.url}` : att.url;
 
-                {/* Checklist item rows with generous tap padding and custom checkboxes */}
-                <div className="space-y-1.5">
-                  {card.checklist.map((item, i) => (
-                    <div
-                      key={i}
-                      className={`group flex items-start gap-3 p-2.5 rounded-xl border transition-all ${item.done
-                          ? "bg-surface-2/20 border-line/30"
-                          : "bg-surface-2/40 hover:bg-surface-2 border-line/60 hover:border-accent/40"
-                        }`}
-                    >
-                      {/* Styled Theme Checkbox Button */}
-                      <button
-                        type="button"
-                        onClick={() => toggleChecklistItem(i)}
-                        aria-label={item.done ? "Mark item incomplete" : "Mark item complete"}
-                        className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all shrink-0 mt-0.5 cursor-pointer touch-manipulation ${item.done
-                            ? "bg-accent border-accent text-white shadow-sm"
-                            : "border-line bg-surface-3 hover:border-accent/60"
-                          }`}
-                      >
-                        {item.done && <Check size={12} strokeWidth={3} />}
-                      </button>
+                      return (
+                        <div
+                          key={att._id}
+                          className="group flex items-center justify-between gap-3 p-2.5 rounded-xl bg-surface-2 border border-line hover:border-accent/40 transition-colors overflow-hidden"
+                        >
+                          <div
+                            onClick={() => setPreviewAttachment(att)}
+                            className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden cursor-pointer"
+                            title={`Preview ${displayName}`}
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-surface border border-line flex items-center justify-center shrink-0 shadow-sm">
+                              {fileInfo.icon}
+                            </div>
+                            <div className="min-w-0 flex-1 overflow-hidden">
+                              <p className="text-xs sm:text-sm font-semibold text-ink hover:text-accent transition-colors break-words break-all line-clamp-2 leading-tight">
+                                {displayName}
+                              </p>
+                              <div className="flex items-center gap-1.5 text-[10.5px] text-muted mt-0.5 flex-wrap">
+                                <span className="font-semibold uppercase tracking-wider text-[9px] px-1 py-0.2 rounded bg-surface border border-line">
+                                  {fileInfo.label}
+                                </span>
+                                {att.size > 0 && (
+                                  <span>• {formatFileSize(att.size)}</span>
+                                )}
+                                <span>• Added {formatRelativeTime(att.createdAt)}</span>
+                              </div>
+                            </div>
+                          </div>
 
-                      {/* Item Text */}
-                      <span
-                        onClick={() => toggleChecklistItem(i)}
-                        className={`text-xs sm:text-sm break-words flex-1 cursor-pointer leading-relaxed select-none ${item.done ? "line-through text-muted/70" : "text-ink font-medium"
-                          }`}
-                      >
-                        {item.text}
-                      </span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setPreviewAttachment(att)}
+                              className="p-1.5 text-muted hover:text-ink hover:bg-surface-3 rounded-lg transition-colors text-xs cursor-pointer"
+                              title="Preview attachment"
+                              aria-label="Preview attachment"
+                            >
+                              <Eye size={14} />
+                            </button>
 
-                      {/* Trailing Delete Action */}
-                      <button
-                        type="button"
-                        onClick={() => deleteChecklistItem(i)}
-                        title="Delete item"
-                        aria-label="Delete item"
-                        className="opacity-0 group-hover:opacity-100 text-muted hover:text-rose-400 p-1 rounded-lg hover:bg-rose-500/10 transition-all cursor-pointer shrink-0 touch-manipulation"
+                            {isServerFile ? (
+                              <a
+                                href={fullUrl}
+                                download={att.originalName || displayName}
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                className="p-1.5 text-muted hover:text-ink hover:bg-surface-3 rounded-lg transition-colors text-xs cursor-pointer"
+                                title="Download file"
+                                aria-label="Download file"
+                              >
+                                <Download size={14} />
+                              </a>
+                            ) : (
+                              <a
+                                href={fullUrl}
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                className="p-1.5 text-muted hover:text-ink hover:bg-surface-3 rounded-lg transition-colors text-xs cursor-pointer"
+                                title="Open link"
+                                aria-label="Open link"
+                              >
+                                <ExternalLink size={14} />
+                              </a>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => confirmDeleteAttachment(att._id, displayName)}
+                              className="p-1.5 text-muted hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors text-xs cursor-pointer"
+                              title="Remove attachment"
+                              aria-label="Remove attachment"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {sortedAttachments.length > 3 && (
+                      <div className="pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setShowAllAttachments(!showAllAttachments)}
+                          className="text-xs font-semibold text-accent hover:text-accent-dark bg-surface-2 hover:bg-surface-3 border border-line px-3 py-1.5 rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1.5 shadow-xs"
+                        >
+                          {showAllAttachments
+                            ? "Show less"
+                            : `Show all attachments (${sortedAttachments.length})`}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Multiple Checklists Section */}
+            {cardChecklists.length > 0 && (
+              <div className="space-y-6">
+                {cardChecklists.map((cl, clIndex) => {
+                  const clKey = cl._id ? String(cl._id) : `cl-${clIndex}`;
+                  const completedCount = (cl.items || []).filter((item) => item.done).length;
+                  const totalCount = (cl.items || []).length;
+                  const percent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+                  const isEditingThisTitle = editingChecklistKey === clKey;
+
+                  return (
+                    <div key={clKey} className="pt-5 border-t border-line/60 space-y-3.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <ListChecks size={15} className="text-muted shrink-0" />
+
+                          {isEditingThisTitle ? (
+                            <div className="flex items-center gap-1.5 flex-1 max-w-sm">
+                              <input
+                                autoFocus
+                                type="text"
+                                value={editingChecklistTitle}
+                                onChange={(e) => setEditingChecklistTitle(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    handleSaveChecklistTitle(cl._id, clIndex);
+                                  } else if (e.key === "Escape") {
+                                    setEditingChecklistKey(null);
+                                    setEditingChecklistTitle("");
+                                  }
+                                }}
+                                className={`${fieldClass} py-1 text-xs sm:text-sm font-semibold`}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleSaveChecklistTitle(cl._id, clIndex)}
+                                className="px-2.5 py-1 text-xs bg-accent hover:bg-accent-dark text-white font-semibold rounded-lg transition-colors cursor-pointer"
+                              >
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingChecklistKey(null);
+                                  setEditingChecklistTitle("");
+                                }}
+                                className="px-2 py-1 text-xs text-muted hover:text-ink transition-colors cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                              <span
+                                onClick={() => handleStartEditChecklistTitle(clKey, cl.title)}
+                                className="text-xs sm:text-sm font-semibold text-ink hover:text-accent cursor-pointer truncate transition-colors"
+                                title="Click to rename checklist"
+                              >
+                                {cl.title || "Checklist"}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleStartEditChecklistTitle(clKey, cl.title)}
+                                className="text-muted/60 hover:text-ink p-1 rounded transition-colors cursor-pointer"
+                                title="Rename checklist"
+                                aria-label={`Rename checklist ${cl.title}`}
+                              >
+                                <Pencil size={11} />
+                              </button>
+                              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-accent/15 border border-accent/30 text-accent shrink-0">
+                                {completedCount}/{totalCount} ({percent}%)
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => confirmDeleteChecklist(cl._id, clIndex, cl.title)}
+                          className="text-xs text-muted hover:text-rose-600 hover:bg-rose-50 px-2.5 py-1 rounded-lg transition-colors cursor-pointer font-medium shrink-0"
+                        >
+                          Delete
+                        </button>
+                      </div>
+
+                      {/* Visibly filled progress bar */}
+                      <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-accent transition-all duration-300 rounded-full shadow-sm"
+                          style={{ width: `${percent}%` }}
+                        />
+                      </div>
+
+                      {/* Checklist item rows */}
+                      <div className="space-y-1.5">
+                        {(cl.items || []).map((item, itemIdx) => (
+                          <div
+                            key={item._id || `item-${itemIdx}`}
+                            className={`group flex items-start gap-3 p-2.5 rounded-xl border transition-all ${
+                              item.done
+                                ? "bg-slate-100/50 border-slate-200/60"
+                                : "bg-slate-50 hover:bg-slate-100/70 border-slate-200 hover:border-accent/40"
+                            }`}
+                          >
+                            {/* Checkbox button */}
+                            <button
+                              type="button"
+                              onClick={() => toggleChecklistItem(cl._id, clIndex, itemIdx)}
+                              aria-label={item.done ? "Mark item incomplete" : "Mark item complete"}
+                              className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all shrink-0 mt-0.5 cursor-pointer touch-manipulation ${
+                                item.done
+                                  ? "bg-accent border-accent text-white shadow-sm"
+                                  : "border-slate-300 bg-white hover:border-accent/60"
+                              }`}
+                            >
+                              {item.done && <Check size={12} strokeWidth={3} />}
+                            </button>
+
+                            {/* Item text */}
+                            <span
+                              onClick={() => toggleChecklistItem(cl._id, clIndex, itemIdx)}
+                              className={`text-xs sm:text-sm break-words flex-1 cursor-pointer leading-relaxed select-none ${
+                                item.done ? "line-through text-muted/70" : "text-ink font-medium"
+                              }`}
+                            >
+                              {item.text}
+                            </span>
+
+                            {/* Delete item button */}
+                            <button
+                              type="button"
+                              onClick={() => deleteChecklistItem(cl._id, clIndex, itemIdx)}
+                              title="Delete item"
+                              aria-label="Delete item"
+                              className="opacity-0 group-hover:opacity-100 text-muted hover:text-rose-600 p-1 rounded-lg hover:bg-rose-50 transition-all cursor-pointer shrink-0 touch-manipulation"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Add item form for this specific checklist */}
+                      <form
+                        onSubmit={(e) => addChecklistItem(e, cl._id, clIndex)}
+                        className="flex gap-2 pt-1"
                       >
-                        <Trash2 size={13} />
-                      </button>
+                        <input
+                          value={newItemInputs[clKey] || ""}
+                          onChange={(e) =>
+                            setNewItemInputs((prev) => ({ ...prev, [clKey]: e.target.value }))
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault();
+                              addChecklistItem(e, cl._id, clIndex);
+                            }
+                          }}
+                          placeholder={`Add an item to ${cl.title || "checklist"}…`}
+                          className={`${fieldClass} text-xs sm:text-sm py-2 flex-1`}
+                        />
+                        {(newItemInputs[clKey] || "").trim() && (
+                          <button
+                            type="submit"
+                            className="text-xs bg-accent hover:bg-accent-dark text-white font-semibold rounded-lg px-3.5 py-2 transition-colors shrink-0 cursor-pointer shadow-sm flex items-center gap-1"
+                          >
+                            <Plus size={14} />
+                            <span>Add</span>
+                          </button>
+                        )}
+                      </form>
                     </div>
-                  ))}
-                </div>
-
-                {/* Add an item input form matching other inputs */}
-                <form onSubmit={addChecklistItem} className="flex gap-2 pt-1">
-                  <input
-                    value={newChecklistItem}
-                    onChange={(e) => setNewChecklistItem(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        addChecklistItem(e);
-                      }
-                    }}
-                    placeholder="Add an item to checklist…"
-                    className={`${fieldClass} text-xs sm:text-sm py-2 flex-1`}
-                  />
-                  {newChecklistItem.trim() && (
-                    <button
-                      type="submit"
-                      className="text-xs bg-accent hover:bg-accent-dark text-white font-semibold rounded-lg px-3.5 py-2 transition-colors shrink-0 cursor-pointer shadow-sm flex items-center gap-1"
-                    >
-                      <Plus size={14} />
-                      <span>Add</span>
-                    </button>
-                  )}
-                </form>
+                  );
+                })}
               </div>
             )}
           </div>
 
           {/* ================= RIGHT COLUMN: COMMENTS & ACTIVITY (~40%) ================= */}
-          <div className="lg:col-span-5 flex flex-col bg-surface-2/20 overflow-hidden min-h-0">
+          <div className="lg:col-span-5 flex flex-col bg-slate-50/60 overflow-hidden min-h-0">
             {/* Header with Activity Detail Toggle */}
-            <div className="p-4 sm:p-5 pb-3 border-b border-line flex items-center justify-between shrink-0 bg-surface/40">
+            <div className="p-4 sm:p-5 pb-3 border-b border-line flex items-center justify-between shrink-0 bg-surface">
               <h4 className="text-xs font-semibold uppercase tracking-wider text-muted">Comments & Activity</h4>
               <button
                 type="button"
                 onClick={() => setShowAllActivity((prev) => !prev)}
-                className="text-[11px] font-medium text-accent-light hover:underline cursor-pointer"
+                className="text-[11px] font-medium text-accent hover:underline cursor-pointer"
               >
                 {showAllActivity ? "Collapse activity" : "Show all activity"}
               </button>
             </div>
 
             {/* Comment Composer Box */}
-            <div className="p-4 sm:p-5 border-b border-line shrink-0 bg-surface/30">
+            <div className="p-4 sm:p-5 border-b border-line shrink-0 bg-surface">
               <form onSubmit={handlePostComment} className="space-y-2.5">
                 <div className="flex gap-2.5">
                   <span
                     className="w-7 h-7 rounded-full flex items-center justify-center text-xs text-white font-semibold shrink-0 shadow-sm mt-0.5"
-                    style={{ backgroundColor: user?.avatarColor || "#7C5CFF" }}
+                    style={{ backgroundColor: user?.avatarColor || "#0C66E4" }}
                   >
                     {user?.name?.[0]?.toUpperCase()}
                   </span>
@@ -1217,12 +1910,12 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                     const isEditing = editingCommentId === c._id;
 
                     return (
-                      <div key={item.id} className="bg-surface border border-line/70 rounded-xl p-3 shadow-sm space-y-2">
+                      <div key={item.id} className="bg-white border border-line rounded-xl p-3 shadow-sm space-y-2">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
                             <span
                               className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] text-white font-semibold shrink-0 shadow-sm"
-                              style={{ backgroundColor: c.user?.avatarColor || "#7C5CFF" }}
+                              style={{ backgroundColor: c.user?.avatarColor || "#0C66E4" }}
                             >
                               {c.user?.name?.[0]?.toUpperCase()}
                             </span>
@@ -1274,7 +1967,7 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                                 setEditingCommentId(c._id);
                                 setEditingCommentText(c.text);
                               }}
-                              className="hover:text-accent-light transition-colors cursor-pointer flex items-center gap-1"
+                              className="hover:text-accent transition-colors cursor-pointer flex items-center gap-1"
                             >
                               <Pencil size={11} />
                               <span>Edit</span>
@@ -1283,7 +1976,7 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                             <button
                               type="button"
                               onClick={() => confirmDeleteComment(c._id)}
-                              className="hover:text-rose-400 transition-colors cursor-pointer flex items-center gap-1"
+                              className="hover:text-rose-600 transition-colors cursor-pointer flex items-center gap-1"
                             >
                               <Trash2 size={11} />
                               <span>Delete</span>
@@ -1314,7 +2007,7 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                 <button
                   type="button"
                   onClick={() => setShowAllActivity(true)}
-                  className="w-full py-1.5 text-center text-xs text-accent-light font-medium hover:underline bg-surface/40 border border-line/40 rounded-lg transition-colors cursor-pointer"
+                  className="w-full py-1.5 text-center text-xs text-accent font-medium hover:underline bg-white border border-line rounded-lg transition-colors cursor-pointer"
                 >
                   Show {totalHiddenActivity} older activity {totalHiddenActivity === 1 ? "entry" : "entries"}
                 </button>
@@ -1334,6 +2027,13 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
         confirmText="Delete"
         isDestructive={true}
         loading={confirmState.loading}
+      />
+
+      {/* Attachment Preview Modal */}
+      <AttachmentPreviewModal
+        isOpen={!!previewAttachment}
+        onClose={() => setPreviewAttachment(null)}
+        attachment={previewAttachment}
       />
     </div>
   );

@@ -30,7 +30,7 @@ export default function PasswordInput({
         minLength={minLength}
         disabled={disabled}
         autoComplete={autoComplete}
-        className={`w-full rounded-lg bg-surface-3 border border-line pl-3.5 pr-11 py-2.5 sm:py-2 text-base sm:text-sm text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${className}`}
+        className={`w-full rounded-lg bg-surface border border-slate-300 pl-3.5 pr-11 py-2.5 sm:py-2 text-base sm:text-sm text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm ${className}`}
         {...props}
       />
       <button

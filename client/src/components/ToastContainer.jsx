@@ -4,37 +4,37 @@ import { Check, AlertCircle, AlertTriangle, Info, X } from "lucide-react";
 
 const TYPE_CONFIG = {
   success: {
-    iconBg: "bg-emerald-500/15",
-    iconColor: "text-emerald-400",
-    border: "border-emerald-500/30",
-    glow: "shadow-[0_4px_24px_rgba(16,185,129,0.15)]",
+    iconBg: "bg-emerald-50 border border-emerald-200",
+    iconColor: "text-emerald-600",
+    border: "border-emerald-200",
+    glow: "shadow-[0_4px_20px_rgba(16,185,129,0.12)]",
     progressBg: "bg-emerald-500",
     defaultTitle: "Success",
     icon: <Check size={16} strokeWidth={2.5} className="shrink-0" />,
   },
   error: {
-    iconBg: "bg-rose-500/15",
-    iconColor: "text-rose-400",
-    border: "border-rose-500/30",
-    glow: "shadow-[0_4px_24px_rgba(244,63,94,0.15)]",
+    iconBg: "bg-rose-50 border border-rose-200",
+    iconColor: "text-rose-600",
+    border: "border-rose-200",
+    glow: "shadow-[0_4px_20px_rgba(244,63,94,0.12)]",
     progressBg: "bg-rose-500",
     defaultTitle: "Error",
     icon: <AlertCircle size={16} strokeWidth={2.5} className="shrink-0" />,
   },
   warning: {
-    iconBg: "bg-amber-500/15",
-    iconColor: "text-amber-400",
-    border: "border-amber-500/30",
-    glow: "shadow-[0_4px_24px_rgba(245,158,11,0.15)]",
+    iconBg: "bg-amber-50 border border-amber-200",
+    iconColor: "text-amber-600",
+    border: "border-amber-200",
+    glow: "shadow-[0_4px_20px_rgba(245,158,11,0.12)]",
     progressBg: "bg-amber-500",
     defaultTitle: "Warning",
     icon: <AlertTriangle size={16} strokeWidth={2.5} className="shrink-0" />,
   },
   info: {
-    iconBg: "bg-accent/15",
-    iconColor: "text-accent-light",
-    border: "border-accent/30",
-    glow: "shadow-[0_4px_24px_rgba(124,92,255,0.15)]",
+    iconBg: "bg-accent/10 border border-accent/20",
+    iconColor: "text-accent",
+    border: "border-accent/25",
+    glow: "shadow-[0_4px_20px_rgba(12,102,228,0.12)]",
     progressBg: "bg-accent",
     defaultTitle: "Notice",
     icon: <Info size={16} strokeWidth={2.5} className="shrink-0" />,
@@ -98,7 +98,7 @@ function ToastItem({ toast, onDismiss }) {
       aria-live="polite"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`relative w-full max-w-sm sm:max-w-md bg-surface/95 backdrop-blur-md border ${config.border} ${config.glow} rounded-xl p-3.5 sm:p-4 text-ink shadow-2xl transition-all duration-200 transform ${
+      className={`relative w-full max-w-sm sm:max-w-md bg-white/95 backdrop-blur-md border ${config.border} ${config.glow} rounded-xl p-3.5 sm:p-4 text-ink shadow-lg transition-all duration-200 transform ${
         isExiting
           ? "opacity-0 scale-95 translate-y-2"
           : "opacity-100 scale-100 translate-y-0 animate-in fade-in slide-in-from-top-2"
@@ -131,7 +131,7 @@ function ToastItem({ toast, onDismiss }) {
           type="button"
           onClick={handleDismiss}
           aria-label="Close notification"
-          className="shrink-0 p-1 -mr-1 -mt-1 text-muted hover:text-ink hover:bg-surface-3 rounded-md transition-colors focus:outline-none focus:ring-1 focus:ring-accent/40"
+          className="shrink-0 p-1 -mr-1 -mt-1 text-muted hover:text-ink hover:bg-surface-2 rounded-md transition-colors focus:outline-none focus:ring-1 focus:ring-accent/40"
         >
           <X size={14} className="shrink-0" />
         </button>

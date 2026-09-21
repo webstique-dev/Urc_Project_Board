@@ -3,6 +3,9 @@ import dotenv from "dotenv";
 import cors from "cors";
 import compression from "compression";
 import http from "http";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
 import { Server } from "socket.io";
 
 import connectDB from "./config/db.js";
@@ -77,6 +80,15 @@ app.use(express.json());
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
 });
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const uploadsDir = path.join(__dirname, "../uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+app.use("/uploads", express.static(uploadsDir));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/boards", boardRoutes);
