@@ -17,6 +17,7 @@ import {
   Eye,
   Loader2,
   FileText,
+  Search,
 } from "lucide-react";
 import api from "../api/axios.js";
 import ConfirmationModal from "./ConfirmationModal.jsx";
@@ -182,9 +183,11 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
 
   // Checklist form state
   const [newChecklistTitle, setNewChecklistTitle] = useState("");
+  const [isCreatingChecklist, setIsCreatingChecklist] = useState(false);
   const [editingChecklistKey, setEditingChecklistKey] = useState(null);
   const [editingChecklistTitle, setEditingChecklistTitle] = useState("");
   const [newItemInputs, setNewItemInputs] = useState({});
+  const [memberSearchModal, setMemberSearchModal] = useState("");
 
   // Comments state
   const [commentText, setCommentText] = useState("");
@@ -221,20 +224,24 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
     load();
   }, [cardId]);
 
-  // Click-outside and Escape key listener for active popovers
+  // Click-outside and Escape key listener for active popovers and modal
   useEffect(() => {
-    if (!activePopover) return;
-
     const handleClickOutside = (e) => {
-      if (!e.target.closest("[data-card-popover]")) {
+      if (activePopover && !e.target.closest("[data-card-popover]")) {
         setActivePopover(null);
       }
     };
 
     const handleKeyDown = (e) => {
       if (e.key === "Escape") {
-        e.stopPropagation();
-        setActivePopover(null);
+        if (confirmState.isOpen) return;
+        if (activePopover) {
+          e.stopPropagation();
+          setActivePopover(null);
+        } else if (onClose) {
+          e.stopPropagation();
+          onClose();
+        }
       }
     };
 
@@ -246,9 +253,10 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
       document.removeEventListener("touchstart", handleClickOutside);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [activePopover]);
+  }, [activePopover, confirmState.isOpen, onClose]);
 
   const save = async (patch) => {
+    const previousCard = card;
     try {
       const sanitizedPatch = { ...patch };
       if (Array.isArray(sanitizedPatch.checklists)) {
@@ -270,12 +278,18 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
           return cleanCl;
         });
       }
+
+      // Optimistic local update
+      setCard((prev) => (prev ? { ...prev, ...sanitizedPatch } : prev));
+
       const res = await api.patch(`/cards/${cardId}`, sanitizedPatch);
       setCard(res.data);
       onChanged();
       return res.data;
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to update card");
+      // Rollback on failure
+      setCard(previousCard);
+      toast.error(err.response?.data?.message || "Failed to update card. Reverted changes.");
     }
   };
 
@@ -340,19 +354,26 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
   const handleCreateChecklist = async (e) => {
     e?.preventDefault();
     const title = newChecklistTitle.trim();
-    if (!title) return;
-    const currentChecklists = getNormalizedChecklists(card);
-    const updated = [
-      ...currentChecklists,
-      {
-        title,
-        items: [],
-      },
-    ];
-    await save({ checklists: updated });
-    setNewChecklistTitle("");
-    setActivePopover(null);
-    toast.success(`Checklist "${title}" created`, { title: "Success" });
+    if (!title || isCreatingChecklist) return;
+    setIsCreatingChecklist(true);
+    try {
+      const currentChecklists = getNormalizedChecklists(card);
+      const updated = [
+        ...currentChecklists,
+        {
+          title,
+          items: [],
+        },
+      ];
+      await save({ checklists: updated });
+      setNewChecklistTitle("");
+      setActivePopover(null);
+      toast.success(`Checklist "${title}" created`, { title: "Success" });
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to create checklist");
+    } finally {
+      setIsCreatingChecklist(false);
+    }
   };
 
   const handleStartEditChecklistTitle = (clKey, currentTitle) => {
@@ -558,6 +579,21 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
       id: commentId,
       title: "Delete comment?",
       message: "Are you sure you want to delete this comment? This cannot be undone.",
+      confirmText: "Delete",
+      loading: false,
+    });
+  };
+
+  const handlePromptRemoveAssignee = (member) => {
+    const memberId = member._id ? member._id.toString() : String(member);
+    const memberName = member.name || "this member";
+    setConfirmState({
+      isOpen: true,
+      type: "remove_assignee",
+      id: memberId,
+      title: "Remove member?",
+      message: `Are you sure you want to remove ${memberName} from this card?`,
+      confirmText: "Remove",
       loading: false,
     });
   };
@@ -573,6 +609,15 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
         setConfirmState({ isOpen: false, type: null, id: null });
         onClose();
         return;
+      }
+
+      if (confirmState.type === "remove_assignee") {
+        const current = (card.assignees || []).map((a) => (a._id ? a._id.toString() : String(a)));
+        const next = current.filter((id) => id !== confirmState.id);
+        const res = await api.patch(`/cards/${cardId}`, { assignees: next });
+        setCard(res.data);
+        onChanged();
+        toast.success("Member removed from card");
       }
 
       if (confirmState.type === "attachment") {
@@ -607,7 +652,7 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
         toast.success("Checklist deleted");
       }
 
-      setConfirmState({ isOpen: false, type: null, id: null, extraIndex: null, title: "", message: "", loading: false });
+      setConfirmState({ isOpen: false, type: null, id: null, extraIndex: null, title: "", message: "", confirmText: "Delete", loading: false });
     } catch (err) {
       toast.error(err.response?.data?.message || "Action failed");
       setConfirmState((prev) => ({ ...prev, loading: false }));
@@ -891,10 +936,11 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                         </button>
                         <button
                           type="submit"
-                          disabled={!newChecklistTitle.trim()}
-                          className="px-3.5 py-1.5 text-xs bg-accent hover:bg-accent-dark text-white font-semibold rounded-lg transition-colors disabled:opacity-50 cursor-pointer shadow-sm"
+                          disabled={!newChecklistTitle.trim() || isCreatingChecklist}
+                          className="px-3.5 py-1.5 text-xs bg-accent hover:bg-accent-dark text-white font-semibold rounded-lg transition-colors disabled:opacity-50 cursor-pointer shadow-sm flex items-center gap-1.5"
                         >
-                          Create
+                          {isCreatingChecklist && <Loader2 size={12} className="animate-spin" />}
+                          <span>{isCreatingChecklist ? "Creating…" : "Create"}</span>
                         </button>
                       </div>
                     </form>
@@ -1108,17 +1154,34 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                   <span className="text-xs font-semibold uppercase tracking-wider text-muted">Members</span>
                 </div>
 
-                <div className="flex items-center gap-1.5 flex-wrap min-h-[32px]">
-                  {(card.assignees || []).map((u) => (
-                    <span
-                      key={u._id}
-                      title={u.name}
-                      className="w-7 h-7 rounded-full flex items-center justify-center text-xs text-white font-semibold shadow-sm ring-2 ring-surface shrink-0"
-                      style={{ backgroundColor: u.avatarColor || "#0C66E4" }}
-                    >
-                      {u.name?.[0]?.toUpperCase()}
-                    </span>
-                  ))}
+                <div className="flex items-center gap-2 flex-wrap min-h-[32px]">
+                  {(card.assignees || []).map((u) => {
+                    const memberId = u._id ? u._id.toString() : String(u);
+                    const memberName = u.name || "Member";
+                    return (
+                      <div key={memberId} className="relative group/member inline-flex items-center">
+                        <span
+                          title={memberName}
+                          className="w-7 h-7 rounded-full flex items-center justify-center text-xs text-white font-semibold shadow-sm ring-2 ring-surface shrink-0 cursor-default select-none"
+                          style={{ backgroundColor: u.avatarColor || "#0C66E4" }}
+                        >
+                          {(memberName[0] || "M").toUpperCase()}
+                        </span>
+                        <button
+                          type="button"
+                          aria-label={`Remove ${memberName} from card`}
+                          title={`Remove ${memberName}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePromptRemoveAssignee(u);
+                          }}
+                          className="absolute -top-1 -left-1 w-3.5 h-3.5 rounded-full bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-white flex items-center justify-center shadow-xs border border-white cursor-pointer transition-all duration-150 scale-95 hover:scale-110 opacity-80 sm:opacity-0 sm:group-hover/member:opacity-100 focus:opacity-100 z-10 touch-manipulation"
+                        >
+                          <X size={8} strokeWidth={3.5} />
+                        </button>
+                      </div>
+                    );
+                  })}
 
                   <div className="relative" data-card-popover="true">
                     <button
@@ -1132,37 +1195,62 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                     </button>
 
                     {activePopover === "members" && (
-                      <div className="absolute left-0 top-full mt-1.5 w-60 bg-surface border border-line rounded-xl shadow-pop p-2 z-[60] space-y-1 animate-in fade-in-50 zoom-in-95">
-                        <p className="text-xs font-semibold uppercase tracking-wider text-muted px-1.5 py-1">
-                          Assign members
-                        </p>
+                      <div className="absolute left-0 top-full mt-1.5 w-64 max-w-[calc(100vw-3rem)] bg-surface border border-line rounded-xl shadow-pop p-2.5 z-[60] space-y-2 animate-in fade-in-50 zoom-in-95">
+                        <div className="flex items-center justify-between pb-1 border-b border-line/60">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+                            Assign members
+                          </p>
+                        </div>
+                        <div className="relative">
+                          <Search size={12} className="absolute left-2 top-2 text-muted" />
+                          <input
+                            type="text"
+                            autoFocus
+                            placeholder="Search members…"
+                            value={memberSearchModal}
+                            onChange={(e) => setMemberSearchModal(e.target.value)}
+                            className="w-full pl-6 pr-2 py-1 text-xs bg-surface-2 border border-line rounded-lg text-ink placeholder:text-muted/60 focus:outline-none focus:ring-1 focus:ring-accent"
+                          />
+                        </div>
                         <div className="max-h-48 overflow-y-auto scrollbar-hide space-y-1">
                           {boardMembers.length === 0 ? (
                             <p className="text-xs text-muted/60 px-2 py-1">No board members</p>
                           ) : (
-                            boardMembers.map((m) => {
-                              const isAssigned = (card.assignees || []).some((a) => (a._id || a) === m.user._id);
-                              return (
-                                <button
-                                  key={m.user._id}
-                                  type="button"
-                                  onClick={() => toggleAssignee(m.user._id)}
-                                  className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${isAssigned ? "bg-accent/15 text-accent font-medium" : "text-ink hover:bg-surface-2"
+                            boardMembers
+                              .filter((m) => {
+                                if (!memberSearchModal.trim()) return true;
+                                const q = memberSearchModal.toLowerCase();
+                                return (
+                                  m.user?.name?.toLowerCase().includes(q) ||
+                                  m.user?.email?.toLowerCase().includes(q)
+                                );
+                              })
+                              .map((m) => {
+                                const isAssigned = (card.assignees || []).some(
+                                  (a) => (a._id ? a._id.toString() : String(a)) === (m.user?._id ? m.user._id.toString() : String(m.user))
+                                );
+                                return (
+                                  <button
+                                    key={m.user._id}
+                                    type="button"
+                                    onClick={() => toggleAssignee(m.user._id)}
+                                    className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
+                                      isAssigned ? "bg-accent/15 text-accent font-medium" : "text-ink hover:bg-surface-2"
                                     }`}
-                                >
-                                  <div className="flex items-center gap-2 truncate">
-                                    <span
-                                      className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] text-white font-semibold shrink-0 shadow-sm"
-                                      style={{ backgroundColor: m.user.avatarColor || "#0C66E4" }}
-                                    >
-                                      {m.user.name?.[0]?.toUpperCase()}
-                                    </span>
-                                    <span className="truncate">{m.user.name}</span>
-                                  </div>
-                                  {isAssigned && <Check size={13} className="text-accent font-bold" />}
-                                </button>
-                              );
-                            })
+                                  >
+                                    <div className="flex items-center gap-2 truncate">
+                                      <span
+                                        className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] text-white font-semibold shrink-0 shadow-sm"
+                                        style={{ backgroundColor: m.user.avatarColor || "#0C66E4" }}
+                                      >
+                                        {m.user.name?.[0]?.toUpperCase()}
+                                      </span>
+                                      <span className="truncate">{m.user.name}</span>
+                                    </div>
+                                    {isAssigned && <Check size={13} className="text-accent font-bold" />}
+                                  </button>
+                                );
+                              })
                           )}
                         </div>
                       </div>
@@ -1667,7 +1755,7 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
 
             {/* Multiple Checklists Section */}
             {cardChecklists.length > 0 && (
-              <div className="space-y-6">
+              <div className="space-y-4 pt-5 border-t border-line/60">
                 {cardChecklists.map((cl, clIndex) => {
                   const clKey = cl._id ? String(cl._id) : `cl-${clIndex}`;
                   const completedCount = (cl.items || []).filter((item) => item.done).length;
@@ -1676,10 +1764,16 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                   const isEditingThisTitle = editingChecklistKey === clKey;
 
                   return (
-                    <div key={clKey} className="pt-5 border-t border-line/60 space-y-3.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <ListChecks size={15} className="text-muted shrink-0" />
+                    <div
+                      key={clKey}
+                      className="bg-surface-2/40 border border-line/90 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3.5 hover:border-accent/30 transition-all"
+                    >
+                      {/* Checklist Header */}
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <div className="w-7 h-7 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center text-accent shrink-0 shadow-xs">
+                            <ListChecks size={15} />
+                          </div>
 
                           {isEditingThisTitle ? (
                             <div className="flex items-center gap-1.5 flex-1 max-w-sm">
@@ -1697,12 +1791,12 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                                     setEditingChecklistTitle("");
                                   }
                                 }}
-                                className={`${fieldClass} py-1 text-xs sm:text-sm font-semibold`}
+                                className={`${fieldClass} py-1 px-2.5 text-xs sm:text-sm font-semibold rounded-lg bg-surface`}
                               />
                               <button
                                 type="button"
                                 onClick={() => handleSaveChecklistTitle(cl._id, clIndex)}
-                                className="px-2.5 py-1 text-xs bg-accent hover:bg-accent-dark text-white font-semibold rounded-lg transition-colors cursor-pointer"
+                                className="px-2.5 py-1 text-xs bg-accent hover:bg-accent-dark text-white font-semibold rounded-lg transition-colors cursor-pointer shadow-xs"
                               >
                                 Save
                               </button>
@@ -1718,10 +1812,10 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                               </button>
                             </div>
                           ) : (
-                            <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                            <div className="flex items-center gap-2 min-w-0 flex-wrap">
                               <span
                                 onClick={() => handleStartEditChecklistTitle(clKey, cl.title)}
-                                className="text-xs sm:text-sm font-semibold text-ink hover:text-accent cursor-pointer truncate transition-colors"
+                                className="text-sm sm:text-[15px] font-bold text-ink hover:text-accent cursor-pointer truncate transition-colors tracking-tight"
                                 title="Click to rename checklist"
                               >
                                 {cl.title || "Checklist"}
@@ -1729,13 +1823,19 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                               <button
                                 type="button"
                                 onClick={() => handleStartEditChecklistTitle(clKey, cl.title)}
-                                className="text-muted/60 hover:text-ink p-1 rounded transition-colors cursor-pointer"
+                                className="text-muted/60 hover:text-ink p-1 rounded-md hover:bg-surface-2 transition-colors cursor-pointer"
                                 title="Rename checklist"
                                 aria-label={`Rename checklist ${cl.title}`}
                               >
                                 <Pencil size={11} />
                               </button>
-                              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-accent/15 border border-accent/30 text-accent shrink-0">
+                              <span
+                                className={`text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 border transition-all ${
+                                  percent === 100
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                    : "bg-accent/10 text-accent border-accent/25"
+                                }`}
+                              >
                                 {completedCount}/{totalCount} ({percent}%)
                               </span>
                             </div>
@@ -1745,92 +1845,101 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                         <button
                           type="button"
                           onClick={() => confirmDeleteChecklist(cl._id, clIndex, cl.title)}
-                          className="text-xs text-muted hover:text-rose-600 hover:bg-rose-50 px-2.5 py-1 rounded-lg transition-colors cursor-pointer font-medium shrink-0"
+                          className="text-xs text-muted hover:text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg border border-transparent hover:border-rose-100 transition-all cursor-pointer font-medium shrink-0 flex items-center gap-1"
                         >
-                          Delete
+                          <Trash2 size={13} className="shrink-0" />
+                          <span>Delete</span>
                         </button>
                       </div>
 
                       {/* Visibly filled progress bar */}
-                      <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                      <div className="w-full h-2 bg-stone-200/80 rounded-full overflow-hidden p-0.5">
                         <div
-                          className="h-full bg-accent transition-all duration-300 rounded-full shadow-sm"
+                          className={`h-full rounded-full transition-all duration-300 ease-out shadow-xs ${
+                            percent === 100
+                              ? "bg-emerald-500"
+                              : "bg-gradient-to-r from-amber-500 to-accent"
+                          }`}
                           style={{ width: `${percent}%` }}
                         />
                       </div>
 
                       {/* Checklist item rows */}
-                      <div className="space-y-1.5">
-                        {(cl.items || []).map((item, itemIdx) => (
-                          <div
-                            key={item._id || `item-${itemIdx}`}
-                            className={`group flex items-start gap-3 p-2.5 rounded-xl border transition-all ${
-                              item.done
-                                ? "bg-slate-100/50 border-slate-200/60"
-                                : "bg-slate-50 hover:bg-slate-100/70 border-slate-200 hover:border-accent/40"
-                            }`}
-                          >
-                            {/* Checkbox button */}
-                            <button
-                              type="button"
-                              onClick={() => toggleChecklistItem(cl._id, clIndex, itemIdx)}
-                              aria-label={item.done ? "Mark item incomplete" : "Mark item complete"}
-                              className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all shrink-0 mt-0.5 cursor-pointer touch-manipulation ${
+                      {(cl.items || []).length > 0 && (
+                        <div className="space-y-1.5 pt-0.5">
+                          {(cl.items || []).map((item, itemIdx) => (
+                            <div
+                              key={item._id || `item-${itemIdx}`}
+                              className={`group/item flex items-center gap-3 px-3 py-2 rounded-xl border transition-all duration-150 ${
                                 item.done
-                                  ? "bg-accent border-accent text-white shadow-sm"
-                                  : "border-slate-300 bg-white hover:border-accent/60"
+                                  ? "bg-surface-2/30 border-line/50 text-muted"
+                                  : "bg-surface hover:bg-surface-2/60 border-line hover:border-accent/40 shadow-xs"
                               }`}
                             >
-                              {item.done && <Check size={12} strokeWidth={3} />}
-                            </button>
+                              {/* Checkbox button */}
+                              <button
+                                type="button"
+                                onClick={() => toggleChecklistItem(cl._id, clIndex, itemIdx)}
+                                aria-label={item.done ? "Mark item incomplete" : "Mark item complete"}
+                                className={`w-4.5 h-4.5 rounded-md border flex items-center justify-center transition-all shrink-0 cursor-pointer touch-manipulation ${
+                                  item.done
+                                    ? "bg-emerald-500 border-emerald-500 text-white shadow-xs"
+                                    : "border-stone-300 bg-white hover:border-emerald-500 hover:bg-emerald-50/50"
+                                }`}
+                              >
+                                {item.done && <Check size={11} strokeWidth={3} />}
+                              </button>
 
-                            {/* Item text */}
-                            <span
-                              onClick={() => toggleChecklistItem(cl._id, clIndex, itemIdx)}
-                              className={`text-xs sm:text-sm break-words flex-1 cursor-pointer leading-relaxed select-none ${
-                                item.done ? "line-through text-muted/70" : "text-ink font-medium"
-                              }`}
-                            >
-                              {item.text}
-                            </span>
+                              {/* Item text */}
+                              <span
+                                onClick={() => toggleChecklistItem(cl._id, clIndex, itemIdx)}
+                                className={`text-xs sm:text-sm flex-1 break-words cursor-pointer select-none leading-snug transition-colors ${
+                                  item.done ? "line-through text-muted/60" : "text-ink font-medium"
+                                }`}
+                              >
+                                {item.text}
+                              </span>
 
-                            {/* Delete item button */}
-                            <button
-                              type="button"
-                              onClick={() => deleteChecklistItem(cl._id, clIndex, itemIdx)}
-                              title="Delete item"
-                              aria-label="Delete item"
-                              className="opacity-0 group-hover:opacity-100 text-muted hover:text-rose-600 p-1 rounded-lg hover:bg-rose-50 transition-all cursor-pointer shrink-0 touch-manipulation"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
+                              {/* Delete item button */}
+                              <button
+                                type="button"
+                                onClick={() => deleteChecklistItem(cl._id, clIndex, itemIdx)}
+                                title="Delete item"
+                                aria-label="Delete item"
+                                className="opacity-0 group-hover/item:opacity-100 text-muted/60 hover:text-rose-600 p-1 rounded-md hover:bg-rose-50 transition-all cursor-pointer shrink-0 touch-manipulation"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
 
                       {/* Add item form for this specific checklist */}
                       <form
                         onSubmit={(e) => addChecklistItem(e, cl._id, clIndex)}
-                        className="flex gap-2 pt-1"
+                        className="flex items-center gap-2 pt-1"
                       >
-                        <input
-                          value={newItemInputs[clKey] || ""}
-                          onChange={(e) =>
-                            setNewItemInputs((prev) => ({ ...prev, [clKey]: e.target.value }))
-                          }
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && !e.shiftKey) {
-                              e.preventDefault();
-                              addChecklistItem(e, cl._id, clIndex);
+                        <div className="relative flex-1">
+                          <input
+                            value={newItemInputs[clKey] || ""}
+                            onChange={(e) =>
+                              setNewItemInputs((prev) => ({ ...prev, [clKey]: e.target.value }))
                             }
-                          }}
-                          placeholder={`Add an item to ${cl.title || "checklist"}…`}
-                          className={`${fieldClass} text-xs sm:text-sm py-2 flex-1`}
-                        />
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                addChecklistItem(e, cl._id, clIndex);
+                              }
+                            }}
+                            placeholder={`Add an item to ${cl.title || "checklist"}…`}
+                            className={`${fieldClass} text-xs sm:text-sm py-2 px-3.5 bg-surface rounded-xl border-line hover:border-accent/40 focus:border-accent shadow-xs w-full`}
+                          />
+                        </div>
                         {(newItemInputs[clKey] || "").trim() && (
                           <button
                             type="submit"
-                            className="text-xs bg-accent hover:bg-accent-dark text-white font-semibold rounded-lg px-3.5 py-2 transition-colors shrink-0 cursor-pointer shadow-sm flex items-center gap-1"
+                            className="text-xs bg-accent hover:bg-accent-dark text-white font-semibold rounded-xl px-4 py-2 transition-all shrink-0 cursor-pointer shadow-sm flex items-center gap-1.5 active:scale-95"
                           >
                             <Plus size={14} />
                             <span>Add</span>
@@ -2024,7 +2133,7 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
         onConfirm={handleConfirmAction}
         title={confirmState.title}
         message={confirmState.message}
-        confirmText="Delete"
+        confirmText={confirmState.confirmText || "Delete"}
         isDestructive={true}
         loading={confirmState.loading}
       />

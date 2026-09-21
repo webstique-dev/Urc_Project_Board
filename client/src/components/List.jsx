@@ -1,6 +1,6 @@
 import { useState, useMemo, memo } from "react";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
-import { X, Plus } from "lucide-react";
+import { X, Plus, Loader2 } from "lucide-react";
 import api from "../api/axios.js";
 import Card from "./Card.jsx";
 import ConfirmationModal from "./ConfirmationModal.jsx";
@@ -9,14 +9,18 @@ import { cardMatchesFilter } from "../utils/filter.js";
 
 function List({
   list,
+  boardMembers = [],
   filters = { members: [], priority: [], dueDate: [], labels: [] },
   onAddCard,
   onOpenCard,
   onChanged,
+  onToggleComplete,
+  onToggleAssignee,
 }) {
   const toast = useToast();
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState("");
+  const [isSubmittingCard, setIsSubmittingCard] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [listTitle, setListTitle] = useState(list.title);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -34,11 +38,18 @@ function List({
   }, [list.cards, isFiltered, filters]);
 
   const submitCard = async (e) => {
-    e.preventDefault();
-    if (!title.trim()) return;
-    await onAddCard(list._id, title);
-    setTitle("");
-    setAdding(false);
+    e?.preventDefault();
+    if (!title.trim() || isSubmittingCard) return;
+    setIsSubmittingCard(true);
+    try {
+      await onAddCard(list._id, title.trim());
+      setTitle("");
+      setAdding(false);
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || "Failed to create card");
+    } finally {
+      setIsSubmittingCard(false);
+    }
   };
 
   const saveTitle = async () => {
@@ -64,6 +75,9 @@ function List({
   };
 
   const handleToggleComplete = async (targetCard) => {
+    if (onToggleComplete) {
+      return onToggleComplete(targetCard);
+    }
     const nextCompleted = !targetCard.completed;
     try {
       await api.patch(`/cards/${targetCard._id}`, { completed: nextCompleted });
@@ -150,6 +164,8 @@ function List({
                       dragging={dragSnapshot.isDragging}
                       onClick={() => onOpenCard(card._id)}
                       onToggleComplete={handleToggleComplete}
+                      boardMembers={boardMembers}
+                      onToggleAssignee={onToggleAssignee}
                     />
                   </div>
                 )}
@@ -186,12 +202,17 @@ function List({
             <div className="flex items-center gap-2 mt-2">
               <button
                 type="submit"
-                className="text-xs sm:text-sm bg-accent hover:bg-accent-dark text-white font-medium rounded-lg px-3.5 py-1.5 transition-colors touch-manipulation cursor-pointer"
+                disabled={isSubmittingCard || !title.trim()}
+                className={`text-xs sm:text-sm bg-accent hover:bg-accent-dark text-white font-medium rounded-lg px-3.5 py-1.5 transition-colors touch-manipulation flex items-center gap-1.5 ${
+                  isSubmittingCard || !title.trim() ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
+                }`}
               >
-                Add card
+                {isSubmittingCard && <Loader2 size={12} className="animate-spin" />}
+                <span>{isSubmittingCard ? "Adding…" : "Add card"}</span>
               </button>
               <button
                 type="button"
+                disabled={isSubmittingCard}
                 onClick={() => setAdding(false)}
                 className="text-xs sm:text-sm text-muted hover:text-ink px-2.5 py-1.5 touch-manipulation cursor-pointer"
               >

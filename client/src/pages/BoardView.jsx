@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { DragDropContext } from "@hello-pangea/dnd";
-import { Users, Plus, Tag } from "lucide-react";
+import { Users, Plus, Tag, Loader2 } from "lucide-react";
 import api from "../api/axios.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useToast } from "../context/ToastContext.jsx";
 import { useSocket } from "../hooks/useSocket.js";
 import { boardGradient } from "../utils/color.js";
 import List from "../components/List.jsx";
@@ -16,12 +17,14 @@ import { cardMatchesFilter } from "../utils/filter.js";
 export default function BoardView() {
   const { id: boardId } = useParams();
   const { user } = useAuth();
+  const toast = useToast();
   const [board, setBoard] = useState(null);
   const [lists, setLists] = useState([]);
   const [activeCard, setActiveCard] = useState(null);
   const [showMembers, setShowMembers] = useState(false);
   const [newListTitle, setNewListTitle] = useState("");
   const [addingList, setAddingList] = useState(false);
+  const [isSubmittingList, setIsSubmittingList] = useState(false);
   const [filters, setFilters] = useState({ members: [], priority: [], dueDate: [], labels: [] });
 
   const isManager =
@@ -49,13 +52,20 @@ export default function BoardView() {
   const broadcastRefresh = useCallback((event) => emitAction(event, { by: user?._id }), [emitAction, user?._id]);
 
   const addList = async (e) => {
-    e.preventDefault();
-    if (!newListTitle.trim()) return;
-    await api.post("/lists", { title: newListTitle, board: boardId });
-    setNewListTitle("");
-    setAddingList(false);
-    loadLists();
-    broadcastRefresh("lists:changed");
+    e?.preventDefault();
+    if (!newListTitle.trim() || isSubmittingList) return;
+    setIsSubmittingList(true);
+    try {
+      await api.post("/lists", { title: newListTitle.trim(), board: boardId });
+      setNewListTitle("");
+      setAddingList(false);
+      loadLists();
+      broadcastRefresh("lists:changed");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to create list");
+    } finally {
+      setIsSubmittingList(false);
+    }
   };
 
   const addCard = useCallback(async (listId, title) => {
@@ -63,6 +73,75 @@ export default function BoardView() {
     loadLists();
     broadcastRefresh("card:changed");
   }, [boardId, loadLists, broadcastRefresh]);
+
+  const handleToggleComplete = useCallback(async (targetCard) => {
+    const previousLists = lists;
+    const nextCompleted = !targetCard.completed;
+
+    // Optimistic local update
+    setLists((currentLists) =>
+      currentLists.map((l) => ({
+        ...l,
+        cards: (l.cards || []).map((c) =>
+          c._id === targetCard._id ? { ...c, completed: nextCompleted } : c
+        ),
+      }))
+    );
+
+    try {
+      await api.patch(`/cards/${targetCard._id}`, { completed: nextCompleted });
+      if (nextCompleted) {
+        toast.success(`Marked "${targetCard.title}" completed`, { title: "Completed" });
+      }
+      broadcastRefresh("card:changed");
+    } catch (err) {
+      // Rollback on failure
+      setLists(previousLists);
+      toast.error(err.response?.data?.message || "Failed to update card status. Reverted changes.");
+    }
+  }, [lists, toast, broadcastRefresh]);
+
+  const handleToggleAssignee = useCallback(async (targetCard, userId) => {
+    const previousLists = lists;
+    const currentAssignees = targetCard.assignees || [];
+    const isAlreadyAssigned = currentAssignees.some(
+      (a) => (a._id ? a._id.toString() : String(a)) === String(userId)
+    );
+
+    let nextAssignees;
+    if (isAlreadyAssigned) {
+      nextAssignees = currentAssignees.filter(
+        (a) => (a._id ? a._id.toString() : String(a)) !== String(userId)
+      );
+    } else {
+      const memberObj = board?.members?.find(
+        (m) => (m.user?._id ? m.user._id.toString() : String(m.user)) === String(userId)
+      );
+      const userPayload = memberObj?.user || { _id: userId, name: "Member" };
+      nextAssignees = [...currentAssignees, userPayload];
+    }
+
+    const nextAssigneeIds = nextAssignees.map((a) => (a._id ? a._id : a));
+
+    // Optimistic local update
+    setLists((currentLists) =>
+      currentLists.map((l) => ({
+        ...l,
+        cards: (l.cards || []).map((c) =>
+          c._id === targetCard._id ? { ...c, assignees: nextAssignees } : c
+        ),
+      }))
+    );
+
+    try {
+      await api.patch(`/cards/${targetCard._id}`, { assignees: nextAssigneeIds });
+      broadcastRefresh("card:changed");
+    } catch (err) {
+      // Rollback on failure
+      setLists(previousLists);
+      toast.error(err.response?.data?.message || "Failed to update card members. Reverted changes.");
+    }
+  }, [lists, board?.members, toast, broadcastRefresh]);
 
   const isFiltered =
     (filters.members && filters.members.length > 0) ||
@@ -306,9 +385,12 @@ export default function BoardView() {
               <List
                 key={list._id}
                 list={list}
+                boardMembers={board.members || []}
                 filters={filters}
                 onAddCard={addCard}
                 onOpenCard={setActiveCard}
+                onToggleComplete={handleToggleComplete}
+                onToggleAssignee={handleToggleAssignee}
                 onChanged={() => {
                   loadLists();
                   broadcastRefresh("lists:changed");
@@ -330,12 +412,17 @@ export default function BoardView() {
                   <div className="flex gap-2 mt-2.5">
                     <button
                       type="submit"
-                      className="text-xs sm:text-sm bg-accent hover:bg-accent-dark text-white font-medium rounded-lg px-3.5 py-1.5 transition-colors touch-manipulation cursor-pointer"
+                      disabled={isSubmittingList || !newListTitle.trim()}
+                      className={`text-xs sm:text-sm bg-accent hover:bg-accent-dark text-white font-medium rounded-lg px-3.5 py-1.5 transition-colors touch-manipulation flex items-center gap-1.5 ${
+                        isSubmittingList || !newListTitle.trim() ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
+                      }`}
                     >
-                      Add list
+                      {isSubmittingList && <Loader2 size={12} className="animate-spin" />}
+                      <span>{isSubmittingList ? "Adding…" : "Add list"}</span>
                     </button>
                     <button
                       type="button"
+                      disabled={isSubmittingList}
                       onClick={() => setAddingList(false)}
                       className="text-xs sm:text-sm text-muted hover:text-ink px-2.5 py-1.5 touch-manipulation cursor-pointer"
                     >

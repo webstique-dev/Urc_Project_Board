@@ -10,15 +10,34 @@ const populateCard = (query) =>
     .populate("activityLog.user", "name avatarColor role")
     .populate("list", "title");
 
+// In-memory cache to prevent duplicate rapid requests (2s window)
+const recentCardCreations = new Map();
+
 // POST /api/cards  { title, board, list }
 export const createCard = async (req, res) => {
   try {
     const { title, board, list } = req.body;
+    if (!title || !title.trim()) {
+      return res.status(400).json({ message: "Card title is required" });
+    }
+
+    const trimmedTitle = title.trim();
+    const dedupeKey = `${req.user._id}:${board}:${list}:${trimmedTitle}`;
+    const now = Date.now();
+
+    if (recentCardCreations.has(dedupeKey)) {
+      const existing = recentCardCreations.get(dedupeKey);
+      if (now - existing.timestamp < 2000) {
+        // Return existing created card to prevent duplicate creation
+        return res.status(200).json(existing.card);
+      }
+    }
+
     const count = await Card.countDocuments({ list });
     const targetList = await List.findById(list);
 
     const card = await Card.create({
-      title,
+      title: trimmedTitle,
       board,
       list,
       order: count,
@@ -34,6 +53,17 @@ export const createCard = async (req, res) => {
     });
 
     const populated = await populateCard(Card.findById(card._id));
+    recentCardCreations.set(dedupeKey, { card: populated, timestamp: now });
+
+    // Clean up old cache entries periodically
+    if (recentCardCreations.size > 200) {
+      for (const [k, v] of recentCardCreations.entries()) {
+        if (now - v.timestamp > 10000) {
+          recentCardCreations.delete(k);
+        }
+      }
+    }
+
     res.status(201).json(populated);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -104,9 +134,18 @@ export const updateCard = async (req, res) => {
       }
     }
 
-    if (updates.assignees !== undefined) {
+    if (updates.assignees !== undefined && Array.isArray(updates.assignees)) {
+      const validAssigneeIds = Array.from(
+        new Set(
+          updates.assignees
+            .map((a) => (a && typeof a === "object" ? a._id || a : a))
+            .filter((id) => id && mongoose.Types.ObjectId.isValid(id))
+            .map(String)
+        )
+      );
+      updates.assignees = validAssigneeIds;
       const oldAssignees = (card.assignees || []).map((a) => a.toString()).sort().join(",");
-      const newAssignees = (updates.assignees || []).map((a) => a.toString()).sort().join(",");
+      const newAssignees = validAssigneeIds.slice().sort().join(",");
       if (oldAssignees !== newAssignees) {
         activities.push({
           action: "assignees_changed",
@@ -285,6 +324,20 @@ export const addAttachment = async (req, res) => {
     const { url, label } = req.body;
     if (!url) return res.status(400).json({ message: "URL is required" });
 
+    // Deduplicate rapid duplicate link attachments (within 2 seconds)
+    const recentLink = (card.attachments || []).slice(-3).find(
+      (a) =>
+        a.type === "link" &&
+        a.url === url &&
+        a.addedBy?.toString() === req.user._id.toString() &&
+        Date.now() - new Date(a.createdAt).getTime() < 2000
+    );
+
+    if (recentLink) {
+      const populated = await populateCard(Card.findById(card._id));
+      return res.status(200).json(populated);
+    }
+
     const attachment = {
       type: "link",
       url,
@@ -321,6 +374,21 @@ export const uploadFileAttachment = async (req, res) => {
 
     const fileUrl = `/uploads/${req.file.filename}`;
     const displayName = req.body.label || req.file.originalname;
+
+    // Deduplicate rapid duplicate file uploads (same originalName and size within 2 seconds)
+    const recentFile = (card.attachments || []).slice(-3).find(
+      (a) =>
+        a.type === "file" &&
+        a.originalName === req.file.originalname &&
+        a.size === req.file.size &&
+        a.addedBy?.toString() === req.user._id.toString() &&
+        Date.now() - new Date(a.createdAt).getTime() < 2000
+    );
+
+    if (recentFile) {
+      const populated = await populateCard(Card.findById(card._id));
+      return res.status(200).json(populated);
+    }
 
     const attachment = {
       type: "file",

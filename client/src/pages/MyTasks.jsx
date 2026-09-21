@@ -28,17 +28,25 @@ export default function MyTasks() {
   const handleToggleTask = async (e, card) => {
     e.preventDefault();
     e.stopPropagation();
+    const prevCompleted = card.completed;
     const nextCompleted = !card.completed;
+
+    // Optimistic local update
+    setCards((prev) =>
+      prev.map((c) => (c._id === card._id ? { ...c, completed: nextCompleted } : c))
+    );
+
     try {
       await api.patch(`/cards/${card._id}`, { completed: nextCompleted });
       if (nextCompleted) {
         toast.success(`Marked "${card.title}" complete`, { title: "Completed" });
       }
-      setCards((prev) =>
-        prev.map((c) => (c._id === card._id ? { ...c, completed: nextCompleted } : c))
-      );
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to update card status");
+      // Rollback on failure
+      setCards((prev) =>
+        prev.map((c) => (c._id === card._id ? { ...c, completed: prevCompleted } : c))
+      );
+      toast.error(err.response?.data?.message || "Failed to update card status. Reverted changes.");
     }
   };
 
