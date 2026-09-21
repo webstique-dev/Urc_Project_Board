@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { X, Plus } from "lucide-react";
+import { X, Plus, Loader2 } from "lucide-react";
 import api from "../api/axios.js";
 import { PALETTE } from "../utils/color.js";
 import { useToast } from "../context/ToastContext.jsx";
@@ -123,9 +123,9 @@ export default function NewProjectModal({ onClose, onCreated }) {
 
         <button
           disabled={loading || !title.trim()}
-          className="w-full bg-accent hover:bg-accent-dark text-white text-sm font-semibold rounded-lg py-3 transition-colors disabled:opacity-50 touch-manipulation flex items-center justify-center gap-2"
+          className="btn-press w-full bg-accent hover:bg-accent-dark text-white text-sm font-semibold rounded-lg py-3 transition-colors disabled:opacity-50 touch-manipulation flex items-center justify-center gap-2 cursor-pointer"
         >
-          {!loading && <Plus size={16} />}
+          {loading ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
           <span>{loading ? "Creating project…" : "Create project"}</span>
         </button>
       </form>

@@ -26,6 +26,7 @@ import { useToast } from "../context/ToastContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import Select from "./ui/Select.jsx";
 import DatePicker from "./ui/DatePicker.jsx";
+import CardModalSkeleton from "./ui/CardModalSkeleton.jsx";
 
 const PRIORITY_OPTIONS = [
   {
@@ -154,13 +155,14 @@ function renderActivityText(activity) {
   }
 }
 
-export default function CardModal({ cardId, boardMembers = [], onClose, onChanged }) {
+export default function CardModal({ cardId, initialCard = null, boardMembers = [], onClose, onChanged }) {
   const { user } = useAuth();
   const toast = useToast();
 
-  const [card, setCard] = useState(null);
-  const [description, setDescription] = useState("");
+  const [card, setCard] = useState(initialCard || null);
+  const [description, setDescription] = useState(initialCard?.description || "");
   const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [isSavingDescription, setIsSavingDescription] = useState(false);
 
   // Popover state management
   const [activePopover, setActivePopover] = useState(null); // 'add' | 'members' | 'labels' | 'checklist' | 'attachment' | 'attachment_inline' | 'overflow' | null
@@ -221,6 +223,10 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
   };
 
   useEffect(() => {
+    if (initialCard) {
+      setCard(initialCard);
+      setDescription(initialCard.description || "");
+    }
     load();
   }, [cardId]);
 
@@ -699,7 +705,7 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
     });
   }, [feedItems, showAllActivity]);
 
-  if (!card) return null;
+  if (!card) return <CardModalSkeleton onClose={onClose} />;
 
   const cardChecklists = getNormalizedChecklists(card);
 
@@ -1396,16 +1402,24 @@ export default function CardModal({ cardId, boardMembers = [], onClose, onChange
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => {
-                        save({ description });
-                        setIsEditingDescription(false);
+                      disabled={isSavingDescription}
+                      onClick={async () => {
+                        setIsSavingDescription(true);
+                        try {
+                          await save({ description });
+                          setIsEditingDescription(false);
+                        } finally {
+                          setIsSavingDescription(false);
+                        }
                       }}
-                      className="px-3.5 py-1.5 text-xs bg-accent hover:bg-accent-dark text-white font-semibold rounded-lg transition-colors cursor-pointer"
+                      className="px-3.5 py-1.5 text-xs bg-accent hover:bg-accent-dark text-white font-semibold rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
                     >
-                      Save
+                      {isSavingDescription && <Loader2 size={12} className="animate-spin" />}
+                      <span>{isSavingDescription ? "Saving…" : "Save"}</span>
                     </button>
                     <button
                       type="button"
+                      disabled={isSavingDescription}
                       onClick={() => {
                         setDescription(card.description || "");
                         setIsEditingDescription(false);

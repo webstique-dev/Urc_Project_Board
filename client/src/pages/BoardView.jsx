@@ -31,6 +31,15 @@ export default function BoardView() {
     user?.role === "admin" ||
     board?.members?.some((m) => m.user._id === user?._id && m.role === "manager");
 
+  const activeCardData = useMemo(() => {
+    if (!activeCard) return null;
+    for (const l of lists) {
+      const found = (l.cards || []).find((c) => c._id === activeCard);
+      if (found) return found;
+    }
+    return null;
+  }, [activeCard, lists]);
+
   const loadBoard = useCallback(() => {
     api.get(`/boards/${boardId}`).then((res) => setBoard(res.data));
   }, [boardId]);
@@ -349,7 +358,7 @@ export default function BoardView() {
             <button
               type="button"
               onClick={() => setShowMembers(true)}
-              className="text-xs sm:text-sm font-medium text-ink bg-surface hover:bg-surface-2 border border-line shadow-sm rounded-lg px-3 py-1.5 transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 touch-manipulation flex items-center gap-1.5 cursor-pointer"
+              className="btn-press text-xs sm:text-sm font-medium text-ink bg-surface hover:bg-surface-2 border border-line shadow-sm rounded-lg px-3 py-1.5 transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 touch-manipulation flex items-center gap-1.5 cursor-pointer"
             >
               <Users size={14} className="shrink-0 text-muted" />
               <span>Manage team</span>
@@ -448,6 +457,7 @@ export default function BoardView() {
       {activeCard && (
         <CardModal
           cardId={activeCard}
+          initialCard={activeCardData}
           boardMembers={board.members}
           onClose={() => setActiveCard(null)}
           onChanged={() => {

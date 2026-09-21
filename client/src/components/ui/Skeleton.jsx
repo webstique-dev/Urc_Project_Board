@@ -1,10 +1,10 @@
 /**
- * Base Skeleton component with animated light-theme pulse
+ * Base Skeleton component with warm shimmer wave animation
  */
 export function Skeleton({ className = "", rounded = "rounded-lg", ...props }) {
   return (
     <div
-      className={`animate-pulse bg-surface-3/80 ${rounded} ${className}`}
+      className={`animate-shimmer ${rounded} ${className}`}
       {...props}
     />
   );

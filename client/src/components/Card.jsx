@@ -148,7 +148,7 @@ function Card({
   return (
     <div
       onClick={onClick}
-      className={`bg-surface rounded-lg border border-line px-3 py-2.5 cursor-pointer hover:border-accent/40 hover:shadow-md active:bg-surface-2 transition-all touch-manipulation group/card relative ${
+      className={`bg-surface rounded-lg border border-line px-3 py-2.5 cursor-pointer hover:border-accent/40 hover:shadow-md active:scale-[0.985] active:border-accent/60 active:bg-surface-2 transition-all duration-100 touch-manipulation group group/card relative ${
         dragging ? "shadow-pop rotate-1 ring-2 ring-accent/40 card-dragging" : "shadow-card"
       } ${card.completed ? "opacity-85" : ""}`}
     >

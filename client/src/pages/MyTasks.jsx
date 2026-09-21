@@ -217,7 +217,7 @@ export default function MyTasks() {
             <Link
               key={card._id}
               to={`/boards/${card.board._id}`}
-              className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-xl border border-line bg-surface p-3.5 sm:p-4 hover:border-accent/40 hover:shadow-md active:scale-[0.99] transition-all shadow-card group/card ${
+              className={`btn-press flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-xl border border-line bg-surface p-3.5 sm:p-4 hover:border-accent/40 hover:shadow-md active:scale-[0.985] transition-all shadow-card group/card ${
                 card.completed ? "opacity-80" : ""
               }`}
             >

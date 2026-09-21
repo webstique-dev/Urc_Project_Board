@@ -37,6 +37,11 @@ textarea::placeholder {
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;     /* Firefox */
   }
+
+  /* Tactile button press feedback */
+  .btn-press {
+    @apply active:scale-[0.98] transition-transform duration-100;
+  }
 }
 
 /* Global scrollbar hiding while preserving scroll functionality across all browsers */
@@ -65,10 +70,41 @@ textarea::placeholder {
   }
 }
 
+@keyframes shimmerSlide {
+  0% {
+    left: -40%;
+  }
+  50% {
+    left: 40%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+@keyframes shimmerWave {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(233, 227, 214, 0.6) 0%,
+    rgba(255, 255, 255, 0.75) 50%,
+    rgba(233, 227, 214, 0.6) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmerWave 1.8s ease-in-out infinite;
+}
+
 /* Ensure completion circle is always visible on touch devices */
 @media (hover: none) and (pointer: coarse) {
   .group\/card button[role="checkbox"] {
     opacity: 1 !important;
   }
 }
-

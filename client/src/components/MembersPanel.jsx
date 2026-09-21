@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Plus, Crown, ShieldCheck } from "lucide-react";
+import { X, Plus, Crown, ShieldCheck, Loader2 } from "lucide-react";
 import api from "../api/axios.js";
 import Select from "./ui/Select.jsx";
 import ConfirmationModal from "./ConfirmationModal.jsx";
@@ -276,7 +276,7 @@ export default function MembersPanel({ board, onClose, onChanged }) {
                   : "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
               }`}
             >
-              <Plus size={15} className="shrink-0" />
+              {isAdding ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} className="shrink-0" />}
               <span>{isAdding ? "Adding…" : "Add member"}</span>
             </button>
           </div>

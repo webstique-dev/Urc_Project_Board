@@ -4,6 +4,7 @@ import { useAuth } from "./context/AuthContext.jsx";
 import Navbar from "./components/Navbar.jsx";
 import ProjectSwitcherBar from "./components/ProjectSwitcherBar.jsx";
 import Preloader from "./components/ui/Preloader.jsx";
+import TopProgressBar from "./components/ui/TopProgressBar.jsx";
 
 // Route-based code splitting: heavy libraries like @hello-pangea/dnd and react-day-picker
 // are loaded on-demand only when their corresponding pages are requested.
@@ -28,6 +29,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-base">
+      <TopProgressBar />
       {user && <Navbar />}
       <div className={user ? "pb-16 sm:pb-14 pb-[calc(4rem+env(safe-area-inset-bottom))]" : ""}>
         <Suspense fallback={<Preloader fullScreen message="Loading page…" />}>

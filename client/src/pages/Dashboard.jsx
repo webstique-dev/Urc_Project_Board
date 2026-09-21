@@ -74,7 +74,7 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={() => setShowNewProject(true)}
-              className="bg-accent hover:bg-accent-dark active:bg-accent-dark text-white text-xs sm:text-sm font-semibold rounded-lg px-4 py-2.5 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-accent/40 touch-manipulation flex items-center gap-1.5 cursor-pointer"
+              className="btn-press bg-accent hover:bg-accent-dark active:bg-accent-dark text-white text-xs sm:text-sm font-semibold rounded-lg px-4 py-2.5 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-accent/40 touch-manipulation flex items-center gap-1.5 cursor-pointer"
             >
               <Plus size={16} className="shrink-0" />
               <span>New project</span>
