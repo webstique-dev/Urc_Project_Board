@@ -57,6 +57,9 @@ export const deleteList = async (req, res) => {
 export const reorderLists = async (req, res) => {
   try {
     const { orderedListIds } = req.body;
+    if (!Array.isArray(orderedListIds)) {
+      return res.status(400).json({ message: "orderedListIds must be an array" });
+    }
     await Promise.all(
       orderedListIds.map((id, index) => List.findByIdAndUpdate(id, { order: index }))
     );

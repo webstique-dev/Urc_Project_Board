@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback, memo } from "react";
 import { createPortal } from "react-dom";
 import { Check, Calendar, Paperclip, CheckSquare, MessageSquare, UserPlus, Search, X, Users } from "lucide-react";
+import { getLabelInfo } from "../utils/labels.js";
 
 const priorityDot = { low: "bg-slate-300", medium: "bg-amber-400", high: "bg-rose-500" };
 
@@ -10,7 +11,10 @@ function Card({
   onClick,
   onToggleComplete,
   boardMembers = [],
+  boardLabels = [],
   onToggleAssignee,
+  onRemoveLabel,
+  onToggleLabel,
   canManageMembers = true,
 }) {
   const [showMemberPopover, setShowMemberPopover] = useState(false);
@@ -153,17 +157,43 @@ function Card({
       } ${card.completed ? "opacity-85" : ""}`}
     >
       {card.labels?.length > 0 && (
-        <div className="flex gap-1 mb-1.5 flex-wrap">
-          {card.labels.map((label) => (
-            <span key={label} className="text-[10px] px-1.5 py-0.5 rounded bg-surface-2 border border-line text-ink font-semibold">
-              {label}
-            </span>
-          ))}
+        <div className="flex gap-1 mb-1.5 flex-wrap items-center">
+          {card.labels.map((label) => {
+            const info = getLabelInfo(label, boardLabels);
+            return (
+              <span
+                key={label}
+                style={info.style}
+                className={`text-[10px] px-1.5 py-0.5 rounded border font-semibold shadow-2xs inline-flex items-center gap-1 group/lbl transition-all ${
+                  info.className || ""
+                }`}
+              >
+                <span>{label}</span>
+                <button
+                  type="button"
+                  title={`Remove "${label}" from this card`}
+                  aria-label={`Remove label ${label}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    if (onRemoveLabel) {
+                      onRemoveLabel(card, label);
+                    }
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                  className="opacity-40 hover:opacity-100 hover:text-rose-600 transition-opacity cursor-pointer p-0.5 -mr-0.5 rounded focus:outline-none"
+                >
+                  <X size={10} />
+                </button>
+              </span>
+            );
+          })}
         </div>
       )}
 
       <div className="flex items-start gap-2.5">
-        {/* Quick Completion Circle */}
+        {/* Always-Visible Completion Circle Control */}
         <button
           type="button"
           role="checkbox"
@@ -171,10 +201,12 @@ function Card({
           aria-label={card.completed ? "Mark card incomplete" : "Mark card complete"}
           title={card.completed ? "Mark incomplete" : "Mark complete"}
           onClick={handleToggle}
-          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all duration-150 cursor-pointer touch-manipulation focus:outline-none focus:ring-2 focus:ring-emerald-500/40 ${
+          onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all duration-150 cursor-pointer touch-manipulation focus:outline-none focus:ring-2 focus:ring-emerald-500/40 opacity-100 ${
             card.completed
-              ? "bg-emerald-500 border-emerald-500 text-white opacity-100 shadow-xs"
-              : "border-stone-300 bg-white hover:border-emerald-500 hover:bg-emerald-50 text-emerald-600 opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100"
+              ? "bg-emerald-500 border-emerald-500 text-white shadow-xs"
+              : "border-stone-400 bg-white hover:border-emerald-500 hover:bg-emerald-50 text-emerald-600"
           }`}
         >
           <Check
@@ -183,7 +215,7 @@ function Card({
             className={`transition-transform duration-150 ${
               card.completed
                 ? "scale-100 text-white"
-                : "scale-0 group-hover/card:scale-75 hover:!scale-100 text-emerald-600"
+                : "scale-0 hover:scale-75 text-emerald-600"
             }`}
           />
         </button>

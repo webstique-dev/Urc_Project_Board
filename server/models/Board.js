@@ -12,6 +12,12 @@ const boardSchema = new mongoose.Schema(
         role: { type: String, enum: ["manager", "member"], default: "member" },
       },
     ],
+    labels: [
+      {
+        name: { type: String, required: true, trim: true },
+        color: { type: String, default: "#0284c7" },
+      },
+    ],
     archived: { type: Boolean, default: false },
   },
   { timestamps: true }

@@ -21,6 +21,17 @@ export const getBoards = async (req, res) => {
   }
 };
 
+const DEFAULT_LABELS = [
+  { name: "Planning", color: "#0284c7" },
+  { name: "Site Work", color: "#d97706" },
+  { name: "Structural", color: "#57534e" },
+  { name: "Electrical", color: "#ca8a04" },
+  { name: "Plumbing", color: "#0891b2" },
+  { name: "Procurement", color: "#9333ea" },
+  { name: "Safety", color: "#e11d48" },
+  { name: "Inspection", color: "#059669" },
+];
+
 // GET /api/boards/:id
 export const getBoard = async (req, res) => {
   try {
@@ -28,6 +39,13 @@ export const getBoard = async (req, res) => {
       .populate("createdBy", "name email")
       .populate("members.user", "name email avatarColor role");
     if (!board) return res.status(404).json({ message: "Board not found" });
+
+    // Initialize default labels if empty
+    if (!board.labels || board.labels.length === 0) {
+      board.labels = DEFAULT_LABELS;
+      await board.save();
+    }
+
     res.json(board);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -44,6 +62,7 @@ export const createBoard = async (req, res) => {
       color,
       createdBy: req.user._id,
       members: [{ user: req.user._id, role: "manager" }],
+      labels: DEFAULT_LABELS,
     });
 
     // Seed default lists like a real Trello project
@@ -165,3 +184,91 @@ export const removeMember = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+// POST /api/boards/:id/labels  { name, color }
+export const addBoardLabel = async (req, res) => {
+  try {
+    const { name, color } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ message: "Label name is required" });
+    }
+
+    const board = await Board.findById(req.params.id);
+    if (!board) return res.status(404).json({ message: "Board not found" });
+
+    const trimmedName = name.trim();
+    const existingIndex = (board.labels || []).findIndex(
+      (l) => l.name.toLowerCase() === trimmedName.toLowerCase()
+    );
+
+    if (existingIndex !== -1) {
+      if (color) {
+        board.labels[existingIndex].color = color;
+      }
+    } else {
+      board.labels.push({ name: trimmedName, color: color || "#0284c7" });
+    }
+
+    await board.save();
+    const populated = await board.populate("members.user", "name email avatarColor role");
+    res.status(201).json(populated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// PATCH /api/boards/:id/labels/:labelId  { name, color }
+export const updateBoardLabel = async (req, res) => {
+  try {
+    const { name, color } = req.body;
+    const board = await Board.findById(req.params.id);
+    if (!board) return res.status(404).json({ message: "Board not found" });
+
+    const label = board.labels.id(req.params.labelId);
+    if (!label) return res.status(404).json({ message: "Label not found" });
+
+    const oldName = label.name;
+    if (name && name.trim()) {
+      label.name = name.trim();
+    }
+    if (color) {
+      label.color = color;
+    }
+
+    await board.save();
+
+    // If renamed, update cards on this board that used the old name
+    if (name && name.trim() && name.trim() !== oldName) {
+      await Card.updateMany(
+        { board: board._id, labels: oldName },
+        { $set: { "labels.$[elem]": name.trim() } },
+        { arrayFilters: [{ elem: oldName }] }
+      );
+    }
+
+    const populated = await board.populate("members.user", "name email avatarColor role");
+    res.json(populated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// DELETE /api/boards/:id/labels/:labelId
+export const deleteBoardLabel = async (req, res) => {
+  try {
+    const board = await Board.findById(req.params.id);
+    if (!board) return res.status(404).json({ message: "Board not found" });
+
+    const label = board.labels.id(req.params.labelId);
+    if (!label) return res.status(404).json({ message: "Label not found" });
+
+    board.labels.pull(req.params.labelId);
+    await board.save();
+
+    const populated = await board.populate("members.user", "name email avatarColor role");
+    res.json(populated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+

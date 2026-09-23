@@ -28,6 +28,13 @@ import Select from "./ui/Select.jsx";
 import DatePicker from "./ui/DatePicker.jsx";
 import CardModalSkeleton from "./ui/CardModalSkeleton.jsx";
 
+import {
+  LABEL_COLOR_OPTIONS,
+  PRESET_CONSTRUCTION_LABELS,
+  getLabelInfo,
+  getLabelDotColor,
+} from "../utils/labels.js";
+
 const PRIORITY_OPTIONS = [
   {
     value: "low",
@@ -45,8 +52,6 @@ const PRIORITY_OPTIONS = [
     icon: <span className="w-2.5 h-2.5 rounded-full bg-rose-400 inline-block" />,
   },
 ];
-
-const PRESET_LABELS = ["Bug", "Feature", "Design", "Frontend", "Backend", "Urgent", "Docs"];
 
 function formatRelativeTime(dateInput) {
   if (!dateInput) return "";
@@ -155,7 +160,16 @@ function renderActivityText(activity) {
   }
 }
 
-export default function CardModal({ cardId, initialCard = null, boardMembers = [], onClose, onChanged }) {
+export default function CardModal({
+  cardId,
+  initialCard = null,
+  boardMembers = [],
+  boardLabels = [],
+  boardId = null,
+  onClose,
+  onChanged,
+  onBoardChanged,
+}) {
   const { user } = useAuth();
   const toast = useToast();
 
@@ -180,8 +194,13 @@ export default function CardModal({ cardId, initialCard = null, boardMembers = [
   const [showAllAttachments, setShowAllAttachments] = useState(false);
   const fileInputRef = useRef(null);
 
-  // Label form state
-  const [customLabel, setCustomLabel] = useState("");
+  // Dynamic label management state
+  const [labelSearch, setLabelSearch] = useState("");
+  const [isCreatingLabel, setIsCreatingLabel] = useState(false);
+  const [newLabelName, setNewLabelName] = useState("");
+  const [newLabelColor, setNewLabelColor] = useState(LABEL_COLOR_OPTIONS[0].value);
+  const [editingLabelObj, setEditingLabelObj] = useState(null);
+  const [isSubmittingLabel, setIsSubmittingLabel] = useState(false);
 
   // Checklist form state
   const [newChecklistTitle, setNewChecklistTitle] = useState("");
@@ -315,20 +334,79 @@ export default function CardModal({ cardId, initialCard = null, boardMembers = [
     save({ assignees: next });
   };
 
-  const addLabel = (labelName) => {
-    const trimmed = labelName.trim();
-    if (!trimmed) return;
+  const toggleLabel = (labelName) => {
     const current = card.labels || [];
-    if (!current.includes(trimmed)) {
-      save({ labels: [...current, trimmed] });
-    }
-    setCustomLabel("");
-    setActivePopover(null);
+    const exists = current.includes(labelName);
+    const next = exists
+      ? current.filter((l) => l !== labelName)
+      : [...current, labelName];
+    save({ labels: next });
   };
 
   const removeLabel = (labelName) => {
     const current = card.labels || [];
     save({ labels: current.filter((l) => l !== labelName) });
+  };
+
+  const handleCreateLabelOnBoard = async (e) => {
+    e?.preventDefault();
+    const name = newLabelName.trim();
+    if (!name || isSubmittingLabel) return;
+    setIsSubmittingLabel(true);
+    try {
+      if (boardId) {
+        await api.post(`/boards/${boardId}/labels`, {
+          name,
+          color: newLabelColor,
+        });
+        if (onBoardChanged) onBoardChanged();
+      }
+      // Also assign newly created label to current card
+      const current = card.labels || [];
+      if (!current.includes(name)) {
+        await save({ labels: [...current, name] });
+      }
+      setNewLabelName("");
+      setIsCreatingLabel(false);
+      toast.success(`Label "${name}" created`, { title: "Success" });
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to create label");
+    } finally {
+      setIsSubmittingLabel(false);
+    }
+  };
+
+  const handleUpdateLabelOnBoard = async (e) => {
+    e?.preventDefault();
+    if (!editingLabelObj || !editingLabelObj.name?.trim() || isSubmittingLabel) return;
+    setIsSubmittingLabel(true);
+    try {
+      if (boardId && editingLabelObj._id) {
+        await api.patch(`/boards/${boardId}/labels/${editingLabelObj._id}`, {
+          name: editingLabelObj.name.trim(),
+          color: editingLabelObj.color,
+        });
+        if (onBoardChanged) onBoardChanged();
+      }
+      setEditingLabelObj(null);
+      toast.success("Label updated");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to update label");
+    } finally {
+      setIsSubmittingLabel(false);
+    }
+  };
+
+  const handleDeleteLabelFromBoard = async (labelId) => {
+    if (!boardId || !labelId) return;
+    try {
+      await api.delete(`/boards/${boardId}/labels/${labelId}`);
+      if (onBoardChanged) onBoardChanged();
+      setEditingLabelObj(null);
+      toast.success("Label removed from project");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to delete label");
+    }
   };
 
   const getNormalizedChecklists = (cardData) => {
@@ -1276,76 +1354,278 @@ export default function CardModal({ cardId, initialCard = null, boardMembers = [
                 </div>
 
                 <div className="flex items-center gap-1.5 flex-wrap min-h-[32px]">
-                  {(card.labels || []).map((lbl) => (
-                    <span
-                      key={lbl}
-                      className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-accent/15 border border-accent/30 text-accent font-medium"
-                    >
-                      <span>{lbl}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeLabel(lbl)}
-                        aria-label={`Remove label ${lbl}`}
-                        className="hover:text-rose-600 cursor-pointer ml-0.5"
+                  {(card.labels || []).map((lbl) => {
+                    const info = getLabelInfo(lbl, boardLabels);
+                    return (
+                      <span
+                        key={lbl}
+                        style={info.style}
+                        className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md border font-medium ${
+                          info.className || ""
+                        }`}
                       >
-                        <X size={11} />
-                      </button>
-                    </span>
-                  ))}
+                        <span>{lbl}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeLabel(lbl)}
+                          aria-label={`Remove label ${lbl}`}
+                          title={`Remove "${lbl}" from this task`}
+                          className="opacity-60 hover:opacity-100 hover:text-rose-600 cursor-pointer ml-0.5 p-0.5 rounded transition-opacity"
+                        >
+                          <X size={11} />
+                        </button>
+                      </span>
+                    );
+                  })}
 
                   <div className="relative" data-card-popover="true">
                     <button
                       type="button"
-                      onClick={() => setActivePopover(activePopover === "labels" ? null : "labels")}
-                      aria-label="Add label"
-                      className="h-7 px-2 rounded-md bg-surface-2 hover:bg-surface-3 border border-line hover:border-accent/50 text-muted hover:text-ink text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer touch-manipulation shrink-0"
-                      title="Add label"
+                      onClick={() => {
+                        setActivePopover(activePopover === "labels" ? null : "labels");
+                        setIsCreatingLabel(false);
+                        setEditingLabelObj(null);
+                        setLabelSearch("");
+                      }}
+                      aria-label="Add or edit labels"
+                      className="h-7 px-2.5 rounded-md bg-surface-2 hover:bg-surface-3 border border-line hover:border-accent/50 text-muted hover:text-ink text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer touch-manipulation shrink-0"
+                      title="Manage labels"
                     >
                       <Plus size={13} />
+                      <span>Label</span>
                     </button>
 
                     {activePopover === "labels" && (
-                      <div className="absolute left-0 top-full mt-1.5 w-60 bg-surface border border-line rounded-xl shadow-pop p-3 z-[60] space-y-2.5 animate-in fade-in-50 zoom-in-95">
-                        <p className="text-xs font-semibold uppercase tracking-wider text-muted">Add Label</p>
-                        <div className="flex gap-1.5">
-                          <input
-                            autoFocus
-                            value={customLabel}
-                            onChange={(e) => setCustomLabel(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && addLabel(customLabel)}
-                            placeholder="New label…"
-                            className={fieldClass + " py-1 text-xs flex-1"}
-                          />
+                      <div className="absolute left-0 top-full mt-1.5 w-72 bg-surface border border-line rounded-xl shadow-pop p-3 z-[60] space-y-3 animate-in fade-in-50 zoom-in-95">
+                        <div className="flex items-center justify-between pb-1 border-b border-line/60">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-ink flex items-center gap-1.5">
+                            <Tag size={12} className="text-accent" />
+                            <span>{isCreatingLabel ? "Create Label" : editingLabelObj ? "Edit Label" : "Labels"}</span>
+                          </p>
                           <button
                             type="button"
-                            onClick={() => addLabel(customLabel)}
-                            className="px-2.5 py-1 bg-accent hover:bg-accent-dark text-white text-xs font-semibold rounded-lg cursor-pointer"
+                            onClick={() => {
+                              setActivePopover(null);
+                              setIsCreatingLabel(false);
+                              setEditingLabelObj(null);
+                            }}
+                            className="text-muted hover:text-ink p-0.5 rounded hover:bg-surface-2 transition-colors cursor-pointer"
                           >
-                            Add
+                            <X size={13} />
                           </button>
                         </div>
-                        <div className="space-y-1">
-                          <p className="text-[10px] text-muted uppercase tracking-wider">Presets</p>
-                          <div className="flex flex-wrap gap-1">
-                            {PRESET_LABELS.map((p) => {
-                              const active = (card.labels || []).includes(p);
-                              return (
-                                <button
-                                  key={p}
-                                  type="button"
-                                  onClick={() => (active ? removeLabel(p) : addLabel(p))}
-                                  className={`text-[11px] px-2 py-0.5 rounded transition-colors cursor-pointer flex items-center gap-1 ${active
-                                    ? "bg-accent text-white font-medium"
-                                    : "bg-surface-2 hover:bg-surface-3 text-ink border border-line"
-                                    }`}
-                                >
-                                  <span>{p}</span>
-                                  {active ? <X size={10} /> : <Plus size={10} />}
-                                </button>
-                              );
-                            })}
+
+                        {/* Search / filter available labels */}
+                        {!isCreatingLabel && !editingLabelObj && (
+                          <div className="relative">
+                            <Search size={12} className="absolute left-2.5 top-2.5 text-muted" />
+                            <input
+                              type="text"
+                              autoFocus
+                              placeholder="Search labels…"
+                              value={labelSearch}
+                              onChange={(e) => setLabelSearch(e.target.value)}
+                              className="w-full pl-7 pr-2 py-1.5 text-xs bg-surface-2 border border-line rounded-lg text-ink placeholder:text-muted/60 focus:outline-none focus:ring-1 focus:ring-accent"
+                            />
                           </div>
-                        </div>
+                        )}
+
+                        {/* Edit existing label inline form */}
+                        {editingLabelObj && (
+                          <form onSubmit={handleUpdateLabelOnBoard} className="space-y-2.5">
+                            <div>
+                              <label className="text-[11px] font-medium text-muted block mb-1">Label Name</label>
+                              <input
+                                autoFocus
+                                value={editingLabelObj.name || ""}
+                                onChange={(e) => setEditingLabelObj({ ...editingLabelObj, name: e.target.value })}
+                                className={fieldClass + " py-1.5 text-xs w-full"}
+                                placeholder="Label name"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[11px] font-medium text-muted block mb-1">Color</label>
+                              <div className="flex flex-wrap gap-1.5">
+                                {LABEL_COLOR_OPTIONS.map((c) => (
+                                  <button
+                                    key={c.value}
+                                    type="button"
+                                    onClick={() => setEditingLabelObj({ ...editingLabelObj, color: c.value })}
+                                    style={{ backgroundColor: c.value }}
+                                    className={`w-5 h-5 rounded-full cursor-pointer transition-transform ${
+                                      editingLabelObj.color === c.value ? "ring-2 ring-offset-1 ring-accent scale-110" : "hover:scale-105 opacity-85"
+                                    }`}
+                                    title={c.name}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between pt-1">
+                              <div className="flex gap-1.5">
+                                <button
+                                  type="submit"
+                                  disabled={isSubmittingLabel || !editingLabelObj.name?.trim()}
+                                  className="px-3 py-1 bg-accent hover:bg-accent-dark text-white text-xs font-semibold rounded-lg cursor-pointer transition-colors disabled:opacity-50"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingLabelObj(null)}
+                                  className="px-2.5 py-1 text-xs text-muted hover:text-ink cursor-pointer"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                              {editingLabelObj._id && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteLabelFromBoard(editingLabelObj._id)}
+                                  className="text-xs text-rose-600 hover:text-rose-700 hover:underline cursor-pointer"
+                                  title="Delete label from project"
+                                >
+                                  Delete
+                                </button>
+                              )}
+                            </div>
+                          </form>
+                        )}
+
+                        {/* Create new label inline form */}
+                        {isCreatingLabel && !editingLabelObj && (
+                          <form onSubmit={handleCreateLabelOnBoard} className="space-y-2.5">
+                            <div>
+                              <label className="text-[11px] font-medium text-muted block mb-1">New Label Name</label>
+                              <input
+                                autoFocus
+                                value={newLabelName}
+                                onChange={(e) => setNewLabelName(e.target.value)}
+                                className={fieldClass + " py-1.5 text-xs w-full"}
+                                placeholder="e.g. Mechanical, Landscaping…"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[11px] font-medium text-muted block mb-1">Color</label>
+                              <div className="flex flex-wrap gap-1.5">
+                                {LABEL_COLOR_OPTIONS.map((c) => (
+                                  <button
+                                    key={c.value}
+                                    type="button"
+                                    onClick={() => setNewLabelColor(c.value)}
+                                    style={{ backgroundColor: c.value }}
+                                    className={`w-5 h-5 rounded-full cursor-pointer transition-transform ${
+                                      newLabelColor === c.value ? "ring-2 ring-offset-1 ring-accent scale-110" : "hover:scale-105 opacity-85"
+                                    }`}
+                                    title={c.name}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                            <div className="flex gap-1.5 pt-1">
+                              <button
+                                type="submit"
+                                disabled={isSubmittingLabel || !newLabelName.trim()}
+                                className="px-3 py-1 bg-accent hover:bg-accent-dark text-white text-xs font-semibold rounded-lg cursor-pointer transition-colors disabled:opacity-50"
+                              >
+                                Create & Apply
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setIsCreatingLabel(false)}
+                                className="px-2.5 py-1 text-xs text-muted hover:text-ink cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </form>
+                        )}
+
+                        {/* Available Labels List */}
+                        {!isCreatingLabel && !editingLabelObj && (
+                          <>
+                            <div className="max-h-48 overflow-y-auto scrollbar-hide space-y-1">
+                              {(() => {
+                                const allLabels = (boardLabels && boardLabels.length > 0)
+                                  ? boardLabels
+                                  : PRESET_CONSTRUCTION_LABELS;
+
+                                const filtered = allLabels.filter((l) =>
+                                  (l.name || l).toLowerCase().includes(labelSearch.toLowerCase())
+                                );
+
+                                if (filtered.length === 0) {
+                                  return (
+                                    <p className="text-xs text-muted/60 text-center py-2">
+                                      No matching labels found
+                                    </p>
+                                  );
+                                }
+
+                                return filtered.map((l) => {
+                                  const name = l.name || l;
+                                  const isAssigned = (card.labels || []).includes(name);
+                                  const info = getLabelInfo(name, boardLabels);
+
+                                  return (
+                                    <div
+                                      key={name}
+                                      className="flex items-center justify-between gap-1 group/item hover:bg-surface-2 rounded-lg p-1 transition-colors"
+                                    >
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleLabel(name)}
+                                        className="flex items-center gap-2 flex-1 min-w-0 text-left cursor-pointer"
+                                      >
+                                        <div
+                                          className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                                            isAssigned ? "bg-accent border-accent text-white" : "border-stone-300 bg-white"
+                                          }`}
+                                        >
+                                          {isAssigned && <Check size={11} strokeWidth={3} />}
+                                        </div>
+                                        <span
+                                          style={info.style}
+                                          className={`text-xs px-2 py-0.5 rounded border font-medium truncate flex-1 ${
+                                            info.className || ""
+                                          }`}
+                                        >
+                                          {name}
+                                        </span>
+                                      </button>
+
+                                      {l._id && (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setEditingLabelObj({ _id: l._id, name: l.name, color: l.color });
+                                          }}
+                                          className="p-1 text-muted hover:text-ink rounded opacity-0 group-hover/item:opacity-100 transition-opacity cursor-pointer"
+                                          title="Edit label definition"
+                                        >
+                                          <Pencil size={11} />
+                                        </button>
+                                      )}
+                                    </div>
+                                  );
+                                });
+                              })()}
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsCreatingLabel(true);
+                                setNewLabelName(labelSearch);
+                                setNewLabelColor(LABEL_COLOR_OPTIONS[0].value);
+                              }}
+                              className="w-full text-left text-xs font-medium text-accent hover:text-accent-dark hover:bg-accent/10 rounded-lg px-2.5 py-1.5 transition-colors cursor-pointer flex items-center gap-1.5 mt-1 border border-dashed border-accent/30"
+                            >
+                              <Plus size={13} />
+                              <span>Create new label</span>
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>

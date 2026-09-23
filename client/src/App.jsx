@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext.jsx";
+import { BoardHeaderProvider } from "./context/BoardHeaderContext.jsx";
 import Navbar from "./components/Navbar.jsx";
 import ProjectSwitcherBar from "./components/ProjectSwitcherBar.jsx";
 import Preloader from "./components/ui/Preloader.jsx";
@@ -28,21 +29,24 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-base">
-      <TopProgressBar />
-      {user && <Navbar />}
-      <div className={user ? "pb-16 sm:pb-14 pb-[calc(4rem+env(safe-area-inset-bottom))]" : ""}>
-        <Suspense fallback={<Preloader fullScreen message="Loading page…" />}>
-          <Routes>
-            <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
-            <Route path="/register" element={user ? <Navigate to="/" /> : <Register />} />
-            <Route path="/" element={<Private><Dashboard /></Private>} />
-            <Route path="/my-tasks" element={<Private><MyTasks /></Private>} />
-            <Route path="/boards/:id" element={<Private><BoardView /></Private>} />
-          </Routes>
-        </Suspense>
+    <BoardHeaderProvider>
+      <div className="min-h-screen bg-base">
+        <TopProgressBar />
+        {user && <Navbar />}
+        <div className={user ? "pb-16 sm:pb-14 pb-[calc(4rem+env(safe-area-inset-bottom))]" : ""}>
+          <Suspense fallback={<Preloader fullScreen message="Loading page…" />}>
+            <Routes>
+              <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
+              <Route path="/register" element={user ? <Navigate to="/" /> : <Register />} />
+              <Route path="/" element={<Private><Dashboard /></Private>} />
+              <Route path="/my-tasks" element={<Private><MyTasks /></Private>} />
+              <Route path="/boards/:id" element={<Private><BoardView /></Private>} />
+            </Routes>
+          </Suspense>
+        </div>
+        {user && <ProjectSwitcherBar />}
       </div>
-      {user && <ProjectSwitcherBar />}
-    </div>
+    </BoardHeaderProvider>
   );
 }
+
