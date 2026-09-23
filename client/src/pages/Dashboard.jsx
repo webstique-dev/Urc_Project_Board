@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Plus, FolderKanban, Filter, ArrowRight } from "lucide-react";
 import api from "../api/axios.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useProjects } from "../context/ProjectsContext.jsx";
 import { boardGradient } from "../utils/color.js";
 import NewProjectModal from "../components/NewProjectModal.jsx";
 import FilterPopover from "../components/ui/FilterPopover.jsx";
@@ -10,17 +11,26 @@ import DashboardSkeleton from "../components/ui/DashboardSkeleton.jsx";
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [boards, setBoards] = useState([]);
+  const { boards, loading: projectsLoading, fetchBoards } = useProjects();
   const [allUsers, setAllUsers] = useState([]);
   const [filters, setFilters] = useState({ members: [] });
   const [showNewProject, setShowNewProject] = useState(false);
-  const [loading, setLoading] = useState(true);
 
-  const load = () => api.get("/boards").then((res) => setBoards(res.data));
-
+  // Fetch secondary user directory data in the background without blocking page render
   useEffect(() => {
-    load().finally(() => setLoading(false));
-    api.get("/auth/users").then((res) => setAllUsers(res.data)).catch(() => {});
+    const controller = new AbortController();
+    api
+      .get("/auth/users", { signal: controller.signal, silentRequest: true })
+      .then((res) => setAllUsers(res.data))
+      .catch((err) => {
+        if (err.name !== "CanceledError" && err.code !== "ERR_CANCELED") {
+          // ignore secondary fetch failure
+        }
+      });
+
+    return () => {
+      controller.abort();
+    };
   }, []);
 
   const filterGroups = useMemo(() => [
@@ -47,12 +57,13 @@ export default function Dashboard() {
     );
   }, [boards, isFiltered, filters.members]);
 
-  if (loading) {
+  // Only show skeleton while initial projects are loading and we have no cached/stored boards
+  if (projectsLoading && boards.length === 0) {
     return <DashboardSkeleton />;
   }
 
   return (
-    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6 sm:py-10">
+    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6 sm:py-10 animate-in fade-in duration-150">
       <div className="relative z-20 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-ink tracking-tight">Projects</h1>
@@ -83,7 +94,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {!loading && boards.length === 0 && (
+      {!projectsLoading && boards.length === 0 && (
         <div className="text-center py-16 sm:py-20 border border-dashed border-line rounded-xl sm:rounded-2xl bg-surface p-6 shadow-sm">
           <div className="w-12 h-12 rounded-2xl bg-surface-2 flex items-center justify-center text-muted mx-auto mb-3">
             <FolderKanban size={24} className="text-muted shrink-0" />
@@ -107,7 +118,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {!loading && boards.length > 0 && filteredBoards.length === 0 && (
+      {!projectsLoading && boards.length > 0 && filteredBoards.length === 0 && (
         <div className="text-center py-16 sm:py-20 border border-dashed border-line rounded-xl sm:rounded-2xl bg-surface p-6 shadow-sm">
           <div className="w-12 h-12 rounded-2xl bg-surface-2 flex items-center justify-center text-muted mx-auto mb-3">
             <Filter size={24} className="text-muted shrink-0" />
@@ -172,7 +183,10 @@ export default function Dashboard() {
       </div>
 
       {showNewProject && (
-        <NewProjectModal onClose={() => setShowNewProject(false)} onCreated={load} />
+        <NewProjectModal
+          onClose={() => setShowNewProject(false)}
+          onCreated={() => fetchBoards(true)}
+        />
       )}
     </div>
   );

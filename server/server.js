@@ -75,9 +75,9 @@ app.use(
 );
 app.use(express.json());
 
-// Lightweight health check endpoint for external ping services / uptime monitors (e.g. UptimeRobot, cron-job.org)
-// Returns 200 without DB query to keep the dyno warm with zero performance penalty
-app.get("/health", (req, res) => {
+// Lightweight health check endpoint for startup readiness checks and uptime monitors
+// Returns 200 without DB query to respond immediately once the server boots
+app.get(["/health", "/api/health"], (req, res) => {
   res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
 });
 

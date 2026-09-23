@@ -1,23 +1,18 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Plus } from "lucide-react";
-import api from "../api/axios.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useProjects } from "../context/ProjectsContext.jsx";
 import NewProjectModal from "./NewProjectModal.jsx";
 
 // Persistent bottom bar: every project the user belongs to, as a tab.
-// The current project (if any) is highlighted. Admins get a "+" to add
-// a new project, which opens as a popup rather than navigating away.
+// Uses shared ProjectsContext to avoid duplicate GET /boards calls.
 export default function ProjectSwitcherBar() {
   const { id: activeBoardId } = useParams();
   const { user } = useAuth();
+  const { boards, fetchBoards } = useProjects();
   const navigate = useNavigate();
-  const [boards, setBoards] = useState([]);
   const [showNewProject, setShowNewProject] = useState(false);
-
-  const load = () => api.get("/boards").then((res) => setBoards(res.data));
-
-  useEffect(() => { load(); }, []);
 
   return (
     <>
@@ -74,7 +69,10 @@ export default function ProjectSwitcherBar() {
       </div>
 
       {showNewProject && (
-        <NewProjectModal onClose={() => setShowNewProject(false)} onCreated={load} />
+        <NewProjectModal
+          onClose={() => setShowNewProject(false)}
+          onCreated={() => fetchBoards(true)}
+        />
       )}
     </>
   );

@@ -1,38 +1,67 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { io } from "socket.io-client";
 
-// One socket connection per board view. Joins the board's room, listens for
-// broadcast events, and exposes `emitAction` for sending local changes out.
-export const useSocket = (boardId, handlers) => {
+// Non-blocking background socket connection per board view
+export const useSocket = (boardId, handlers = {}) => {
   const socketRef = useRef(null);
+  const handlersRef = useRef(handlers);
+  handlersRef.current = handlers;
 
   useEffect(() => {
     if (!boardId) return;
 
-    const socket = io(import.meta.env.VITE_SOCKET_URL || "http://localhost:5000", {
-      reconnection: true,
-      reconnectionAttempts: Infinity,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 30000,
-    });
-    socketRef.current = socket;
-    socket.emit("board:join", boardId);
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
 
-    Object.entries(handlers).forEach(([event, handler]) => {
-      socket.on(event, handler);
+    const socket = io(socketUrl, {
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1500,
+      reconnectionDelayMax: 6000,
+      timeout: 20000,
+      autoConnect: true,
+    });
+
+    socketRef.current = socket;
+
+    // Join room when connected (or reconnected)
+    socket.on("connect", () => {
+      socket.emit("board:join", boardId);
+    });
+
+    // If socket is already connected immediately
+    if (socket.connected) {
+      socket.emit("board:join", boardId);
+    }
+
+    // Dynamic event dispatcher referencing fresh handler functions
+    const eventNames = ["lists:changed", "card:changed", "board:changed"];
+    eventNames.forEach((event) => {
+      socket.on(event, (data) => {
+        handlersRef.current[event]?.(data);
+      });
     });
 
     return () => {
-      socket.emit("board:leave", boardId);
-      socket.disconnect();
+      try {
+        if (socket.connected) {
+          socket.emit("board:leave", boardId);
+        }
+        socket.disconnect();
+      } catch (err) {
+        // Safe cleanup
+      }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [boardId]);
 
-  const emitAction = (event, payload) => {
-    socketRef.current?.emit("board:action", { boardId, event, payload });
-  };
+  const emitAction = useCallback(
+    (event, payload) => {
+      if (socketRef.current?.connected) {
+        socketRef.current.emit("board:action", { boardId, event, payload });
+      }
+    },
+    [boardId]
+  );
 
   return { emitAction };
 };

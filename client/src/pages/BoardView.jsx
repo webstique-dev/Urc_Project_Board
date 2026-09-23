@@ -43,17 +43,36 @@ export default function BoardView() {
     return null;
   }, [activeCard, lists]);
 
-  const loadBoard = useCallback(() => {
-    api.get(`/boards/${boardId}`).then((res) => setBoard(res.data));
+  const loadBoard = useCallback((signal = null) => {
+    return api
+      .get(`/boards/${boardId}`, { signal })
+      .then((res) => setBoard(res.data))
+      .catch((err) => {
+        if (err.name !== "CanceledError" && err.code !== "ERR_CANCELED") {
+          console.error("Failed to load board:", err);
+        }
+      });
   }, [boardId]);
 
-  const loadLists = useCallback(() => {
-    api.get(`/lists/board/${boardId}`).then((res) => setLists(res.data));
+  const loadLists = useCallback((signal = null) => {
+    return api
+      .get(`/lists/board/${boardId}`, { signal })
+      .then((res) => setLists(res.data))
+      .catch((err) => {
+        if (err.name !== "CanceledError" && err.code !== "ERR_CANCELED") {
+          console.error("Failed to load lists:", err);
+        }
+      });
   }, [boardId]);
 
   useEffect(() => {
-    loadBoard();
-    loadLists();
+    const controller = new AbortController();
+    loadBoard(controller.signal);
+    loadLists(controller.signal);
+
+    return () => {
+      controller.abort();
+    };
   }, [boardId, loadBoard, loadLists]);
 
   const { emitAction } = useSocket(boardId, {

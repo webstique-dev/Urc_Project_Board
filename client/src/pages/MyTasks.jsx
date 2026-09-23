@@ -20,9 +20,20 @@ export default function MyTasks() {
   const [filters, setFilters] = useState({ priority: [], dueDate: [], labels: [] });
 
   useEffect(() => {
-    api.get("/cards/mine")
+    const controller = new AbortController();
+    api
+      .get("/cards/mine", { signal: controller.signal })
       .then((res) => setCards(res.data))
+      .catch((err) => {
+        if (err.name !== "CanceledError" && err.code !== "ERR_CANCELED") {
+          console.error("Failed to load my tasks:", err);
+        }
+      })
       .finally(() => setLoading(false));
+
+    return () => {
+      controller.abort();
+    };
   }, []);
 
   const handleToggleTask = async (e, card) => {
